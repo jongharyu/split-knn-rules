@@ -14,11 +14,11 @@ mpl.style.use( 'ggplot' )
 markers = ['o', 's', '*', 'v', '^', 'D', 'h', 'x', '+', '8', 'p', '<', '>', 'd', 'H', 1, 2, 3, 4]
 
 parser = argparse.ArgumentParser(description='Split knn rules')
-parser.add_argument('--test-size', type=float, default='', metavar='t',
+parser.add_argument('--test-size', type=float, default=0.4, metavar='t',
                     help='test split ratio')
 parser.add_argument('--n-trials', type=str, default=10,
                     help='number of different train/test splits')
-parser.add_argument('--parallel', type=str2bool, default='', metavar='P',
+parser.add_argument('--parallel', type=str2bool, default=False, metavar='P',
                     help='use multiprocessors')
 parser.add_argument('--dataset', type=str, default='MiniBooNE',
                     choices=['MiniBooNE', 'HTRU2'])
@@ -54,9 +54,9 @@ def parse_descriptor(key):
 def run():
     n_trials = args.n_trials
 
-    keys = ['oracle_1NN', 'oracle_kNN',
-            'split_1NN', 'soft_big_1NN', 'big_1NN',
-            'split_3NN', 'hard_split_3NN', 'soft_big_3NN', 'big_3NN',]
+    keys = ['split_1NN', 'soft_big_1NN', 'big_1NN',
+            'split_3NN', 'hard_split_3NN', 'soft_big_3NN', 'big_3NN',
+            'oracle_kNN',]
     ks = [1, 3, 5, 9, 17, 33, 65, 129, 257]
     error_rates = {key: np.zeros((len(ks), n_trials)) for key in keys}
     elapsed_times = {key: np.zeros((len(ks), n_trials)) for key in keys}
@@ -65,6 +65,7 @@ def run():
         for i, k_oracle in enumerate(ks):
             print('Running {} with {}'.format(key, k_oracle), end='; ')
             for n in range(n_trials):
+                print(n, end=' ')
                 # Split dataset at random
                 X_train, X_test, y_train, y_test = dataset.train_test_split(test_size=args.test_size, seed=n)
 
@@ -77,6 +78,8 @@ def run():
 
                 else:
                     n_neighbors, distance_selective, thresholding = parse_descriptor(key)
+                    if n_neighbors == 1:
+                        break
                     regressor = SplitKNeighborsRegressor(n_neighbors=n_neighbors,
                                                          distance_selective=distance_selective,
                                                          thresholding=thresholding)

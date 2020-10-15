@@ -34,7 +34,7 @@ class MiniBooNE:
 
     @staticmethod
     def load_and_preprocess(root):
-        filepath = "{}/data/MiniBooNE/MiniBooNE_PID.txt".format(root)
+        filepath = "{}/data/miniboone/MiniBooNE_PID.txt".format(root)
         df = mb.import_data(Path(filepath))
 
         # Rename columns
