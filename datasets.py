@@ -66,3 +66,29 @@ class MiniBooNE:
 
         return X_train, X_test, y_train, y_test
 
+
+class CREDIT:
+    """
+    References
+    ----------
+    [1] https://github.com/meauxt/credit-card-default/blob/master/credit_card_default.ipynb
+    [2] https://www.kaggle.com/lucabasa/credit-card-default-a-very-pedagogical-notebook
+    """
+    def __init__(self, root='.'):
+        self.X, self.y = self.load_and_preprocess(root)
+
+    @staticmethod
+    def load_and_preprocess(root, verbose=False):
+        xls = pd.ExcelFile("{}/data/CREDIT/credit_cards_dataset.xls".format(root))
+        df = xls.parse('Data')
+        df.columns = df.iloc[0]  # set the first row as column names
+        df = df.iloc[1:]  # drop the duplicated first row
+        del df['ID']  # drop the ID column
+        if verbose:
+            print(df)
+        X, y = df[df.columns[:-1]], df[df.columns[-1]]
+        return X, y
+
+    def train_test_split(self, test_size=0.4, seed=0):
+        return train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
+
