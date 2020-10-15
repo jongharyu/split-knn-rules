@@ -76,6 +76,8 @@ class CREDIT:
     """
     def __init__(self, root='.'):
         self.X, self.y = self.load_and_preprocess(root)
+        self.classification = True
+        self.name = 'CREDIT'
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
