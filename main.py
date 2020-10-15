@@ -21,7 +21,9 @@ parser.add_argument('--n-trials', type=int, default=10,
 parser.add_argument('--parallel', type=str2bool, default=False, metavar='P',
                     help='use multiprocessors')
 parser.add_argument('--dataset', type=str, default='MiniBooNE',
-                    choices=['MiniBooNE', 'HTRU2', 'CREDIT', 'GISETTE'])
+                    choices=['MiniBooNE', 'HTRU2', 'CREDIT', 'GISETTE',
+                             'SUSY', 'HIGGS', 'BNGLetter',
+                             'WineQuality', 'YearPredictionMSD'])
 parser.add_argument('--main-path', type=str, default='.')
 
 args = parser.parse_args()

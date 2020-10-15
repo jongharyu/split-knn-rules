@@ -6,8 +6,21 @@ from sklearn.model_selection import train_test_split
 import data.miniboone as mb
 
 
-class HTRU2:
+class Dataset:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def load_and_preprocess(root):
+        raise NotImplementedError
+
+    def train_test_split(self, test_size=0.4, seed=0):
+        return train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
+
+
+class HTRU2(Dataset):
     def __init__(self, root='.'):
+        super().__init__()
         self.X, self.y = self.load_and_preprocess(root)
         self.classification = True
         self.name = 'htru2'
@@ -22,12 +35,10 @@ class HTRU2:
         X, y = np.array(df[features]), np.array(df[8])
         return X, y
 
-    def train_test_split(self, test_size=0.4, seed=0):
-        return train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
 
-
-class MiniBooNE:
+class MiniBooNE(Dataset):
     def __init__(self, root='.'):
+        super().__init__()
         self.df = self.load_and_preprocess(root)
         self.classification = True
         self.name = 'miniboone'
@@ -67,7 +78,7 @@ class MiniBooNE:
         return X_train, X_test, y_train, y_test
 
 
-class CREDIT:
+class CREDIT(Dataset):
     """
     References
     ----------
@@ -75,6 +86,7 @@ class CREDIT:
     [2] https://www.kaggle.com/lucabasa/credit-card-default-a-very-pedagogical-notebook
     """
     def __init__(self, root='.'):
+        super().__init__()
         self.X, self.y = self.load_and_preprocess(root)
         self.classification = True
         self.name = 'CREDIT'
@@ -91,15 +103,13 @@ class CREDIT:
         X, y = np.array(df[df.columns[:-1]]).astype(float), np.array(df[df.columns[-1]]).astype(int)
         return X, y
 
-    def train_test_split(self, test_size=0.4, seed=0):
-        return train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
 
-
-class GISETTE:
+class GISETTE(Dataset):
     # Reference
     # [1] https://github.com/aashsach/random-forest/blob/master/random_forest_classifier.ipynb
 
     def __init__(self, root='.'):
+        super().__init__()
         self.X, self.y = self.load_and_preprocess(root)
         self.classification = True
         self.name = 'GISETTE'
@@ -137,7 +147,110 @@ class GISETTE:
 
         return X, y
 
-    def train_test_split(self, test_size=0.4, seed=0):
-        return train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
+
+class SUSY(Dataset):
+    """
+    References
+    ----------
+    [1] https://archive.ics.uci.edu/ml/datasets/SUSY
+    """
+
+    def __init__(self, root='.'):
+        super().__init__()
+        self.X, self.y = self.load_and_preprocess(root)
+        self.classification = True
+        self.name = 'SUSY'
+
+    @staticmethod
+    def load_and_preprocess(root, verbose=False):
+        filename = '{}/data/SUSY/SUSY.csv.gz'.format(root)
+        df = pd.read_csv(filename, compression='gzip', header=None, sep=',', quotechar='"', error_bad_lines=False)
+        X, y = np.array(df[df.columns[1:]]), np.array(df[df.columns[0]])
+
+        return X, y
 
 
+class HIGGS(Dataset):
+    """
+    References
+    ----------
+    [1] https://archive.ics.uci.edu/ml/datasets/HIGGS
+    """
+
+    def __init__(self, root='.'):
+        super().__init__()
+        self.X, self.y = self.load_and_preprocess(root)
+        self.classification = True
+        self.name = 'HIGGS'
+
+    @staticmethod
+    def load_and_preprocess(root, verbose=False):
+        filename = '{}/data/HIGGS/HIGGS.csv.gz'.format(root)
+        df = pd.read_csv(filename, compression='gzip', header=None, sep=',', quotechar='"', error_bad_lines=False)
+        X, y = np.array(df[df.columns[1:]]), np.array(df[df.columns[0]])
+
+        return X, y
+
+
+class BNGLetter(Dataset):
+    """
+    References
+    ----------
+    [1] https://www.openml.org/d/1378
+    """
+    def __init__(self, root='.'):
+        super().__init__()
+        self.X, self.y = self.load_and_preprocess(root)
+        self.classification = True
+        self.name = 'BNGLetter'
+
+    @staticmethod
+    def load_and_preprocess(root, verbose=False):
+        filename = '{}/data/BNGLetter/BNG_letter_1000_1.csv'.format(root)
+        df = pd.read_csv(filename, header=0, sep=',', quotechar='"', error_bad_lines=False)
+        X, y = np.array(df[df.columns[:-1]]), np.array(df[df.columns[-1]])
+
+        return X, y
+
+
+class WineQuality(Dataset):
+    """
+    References
+    ----------
+    [1] https://archive.ics.uci.edu/ml/datasets/wine+quality
+    """
+    def __init__(self, root='.'):
+        super().__init__()
+        self.X, self.y = self.load_and_preprocess(root)
+        self.classification = False
+        self.name = 'WineQuality'
+
+    @staticmethod
+    def load_and_preprocess(root, verbose=False):
+        red = pd.read_csv('{}/data/WineQuality/winequality-red.csv'.format(root), low_memory=False, sep=';')
+        white = pd.read_csv('{}/data/WineQuality/winequality-white.csv'.format(root), low_memory=False, sep=';')
+        df = pd.concat([red, white], ignore_index=True)
+        X, y = np.array(df[df.columns[:-1]]), np.array(df[df.columns[-1]])
+
+        return X, y
+
+
+class YearPredictionMSD(Dataset):
+    """
+    References
+    ----------
+    [1] https://archive.ics.uci.edu/ml/datasets/YearPredictionMSD
+    """
+    def __init__(self, root='.'):
+        super().__init__()
+        self.X, self.y = self.load_and_preprocess(root)
+        self.classification = False
+        self.name = 'YearPredictionMSD'
+
+    @staticmethod
+    def load_and_preprocess(root, verbose=False):
+        filename = '{}/data/YearPredictionMSD/YearPredictionMSD.txt.zip'.format(root)
+        df = pd.read_csv(filename, compression='zip', header=None, sep=',', quotechar='"', error_bad_lines=False)
+        X, y = np.array(df[df.columns[1:]]), np.array(df[df.columns[0]])
+
+        return X, y
