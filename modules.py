@@ -115,7 +115,6 @@ class SplitKNeighborsRegressor:
                 knn_distances[m] = regressor.kneighbors(X)[0][:, -1]  # (num_queries,)
 
         else:  # parallel processing
-            print("Parallel processing...")
             with mp.Pool() as pool:
                 local_returns = pool.map(predict, zip(self.local_regressors, [X] * self.M))
             local_estimates, knn_distances = [np.array(l) for l in list(zip(*local_returns))]

@@ -52,6 +52,9 @@ def parse_descriptor(key):
 
 
 def run():
+    if args.parallel:
+        print("Parallel processing...")
+
     n_trials = args.n_trials
 
     keys = ['split_1NN', 'soft_big_1NN', 'big_1NN',
