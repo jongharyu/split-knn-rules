@@ -94,3 +94,50 @@ class CREDIT:
     def train_test_split(self, test_size=0.4, seed=0):
         return train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
 
+
+class GISETTE:
+    # Reference
+    # [1] https://github.com/aashsach/random-forest/blob/master/random_forest_classifier.ipynb
+
+    def __init__(self, root='.'):
+        self.X, self.y = self.load_and_preprocess(root)
+        self.classification = True
+        self.name = 'GISETTE'
+
+    @staticmethod
+    def load_and_preprocess(root, verbose=False):
+        with open("{}/data/GISETTE/gisette_train.data".format(root)) as f:
+            data = []
+            for row in f.readlines():
+                data.append((row.strip()).split(" "))
+        X_train = np.array(data).astype(int)
+
+        with open("{}/data/GISETTE/gisette_train.labels".format(root)) as f:
+            classes = []
+            for row in f.readlines():
+                classes.append((row.strip()).split(" "))
+        y_train = np.array(classes).astype(int)
+        y_train = y_train[:, 0]
+
+        with open("{}/data/GISETTE/gisette_valid.data".format(root)) as f:
+            data = []
+            for row in f.readlines():
+                data.append((row.strip()).split(" "))
+        X_valid = np.array(data).astype(int)
+
+        with open("{}/data/GISETTE/gisette_valid.labels".format(root)) as f:
+            classes = []
+            for row in f.readlines():
+                classes.append((row.strip()).split(" "))
+        y_valid = np.array(classes).astype(int)
+        y_valid = y_valid[:, 0]
+
+        X = np.concatenate([X_train, X_valid], axis=0)
+        y = np.concatenate([y_train, y_valid], axis=0)
+
+        return X, y
+
+    def train_test_split(self, test_size=0.4, seed=0):
+        return train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
+
+
