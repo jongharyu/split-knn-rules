@@ -33,7 +33,7 @@ class MiniBooNE:
         self.name = 'miniboone'
 
     @staticmethod
-    def load_and_preprocess(root):
+    def load_and_preprocess(root, verbose=False):
         filepath = "{}/data/miniboone/MiniBooNE_PID.txt".format(root)
         df = mb.import_data(Path(filepath))
 
@@ -47,10 +47,11 @@ class MiniBooNE:
         # Add the "target" column (1 - electron, 0 - muon)
         df = mb.add_target_column(df, num_electron, num_muon)
 
-        # Data inspection
-        df.head()
-        df.info()
-        mb.pretty_describe(df)
+        if verbose:
+            # Data inspection
+            df.head()
+            df.info()
+            mb.pretty_describe(df)
 
         return df
 
