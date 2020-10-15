@@ -86,7 +86,7 @@ class CREDIT:
         del df['ID']  # drop the ID column
         if verbose:
             print(df)
-        X, y = df[df.columns[:-1]], df[df.columns[-1]]
+        X, y = np.array(df[df.columns[:-1]]), np.array(df[df.columns[-1]])
         return X, y
 
     def train_test_split(self, test_size=0.4, seed=0):
