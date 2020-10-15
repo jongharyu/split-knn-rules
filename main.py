@@ -16,7 +16,7 @@ markers = ['o', 's', '*', 'v', '^', 'D', 'h', 'x', '+', '8', 'p', '<', '>', 'd',
 parser = argparse.ArgumentParser(description='Split knn rules')
 parser.add_argument('--test-size', type=float, default=0.4, metavar='t',
                     help='test split ratio')
-parser.add_argument('--n-trials', type=str, default=10,
+parser.add_argument('--n-trials', type=int, default=10,
                     help='number of different train/test splits')
 parser.add_argument('--parallel', type=str2bool, default=False, metavar='P',
                     help='use multiprocessors')

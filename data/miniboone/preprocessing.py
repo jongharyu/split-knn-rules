@@ -59,7 +59,7 @@ def x_y_split(df: pd.DataFrame,
     x = df.drop(y_col, axis=1).copy()
     y = df[y_col].copy()
 
-    print("Class ratio: {0:.5f}".format(y.sum() / x.shape[0]))
+    # print("Class ratio: {0:.5f}".format(y.sum() / x.shape[0]))
 
     return x, y
 
