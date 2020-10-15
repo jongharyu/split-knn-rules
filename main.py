@@ -77,9 +77,9 @@ def run():
                     y_test_pred = predictor.predict(X_test)
 
                 else:
-                    n_neighbors, distance_selective, thresholding = parse_descriptor(key)
-                    if n_neighbors == 1:
+                    if k_oracle == 1:
                         break
+                    n_neighbors, distance_selective, thresholding = parse_descriptor(key)
                     regressor = SplitKNeighborsRegressor(n_neighbors=n_neighbors,
                                                          distance_selective=distance_selective,
                                                          thresholding=thresholding)
