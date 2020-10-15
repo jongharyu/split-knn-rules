@@ -21,7 +21,7 @@ parser.add_argument('--n-trials', type=int, default=10,
 parser.add_argument('--parallel', type=str2bool, default=False, metavar='P',
                     help='use multiprocessors')
 parser.add_argument('--dataset', type=str, default='MiniBooNE',
-                    choices=['MiniBooNE', 'HTRU2'])
+                    choices=['MiniBooNE', 'HTRU2', 'CREDIT'])
 parser.add_argument('--main-path', type=str, default='.')
 
 args = parser.parse_args()
@@ -112,7 +112,6 @@ def run():
                      error_rates[key].mean(axis=1),
                      error_rates[key].std(axis=1),
                      marker=markers[i], capsize=3, label=key)
-        plt.axhline(error_rates['oracle_1NN'].mean())
         plt.axhline(error_rates['soft_big_1NN'].mean(axis=1).min())
         plt.axhline(error_rates['oracle_kNN'].mean(axis=1).min())
     plt.legend()
