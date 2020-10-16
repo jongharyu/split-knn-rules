@@ -96,7 +96,7 @@ def run():
 
                 elapsed_times[key][i, n] = timer() - start
                 error_rates[key][i, n] = compute_error_rate(y_test_pred, y_test)
-                print("{} / {:.2f}s".format(error_rates, elapsed_times))
+                print("{} / {:.2f}s".format(error_rates[key][i, n], elapsed_times[key][i, n]))
             print("Mean error rates: {}".format(elapsed_times[key][i, :].mean()))
         print(key, error_rates[key])
 
