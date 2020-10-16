@@ -1,9 +1,12 @@
 import argparse
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from multiprocessing import cpu_count
 import numpy as np
 from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
 from timeit import default_timer as timer
+
+import cpuinfo
 
 import datasets
 from modules import compute_error_rate, get_random_split, SplitKNeighborsRegressor
@@ -18,6 +21,8 @@ parser.add_argument('--test-size', type=float, default=0.4, metavar='t',
                     help='test split ratio')
 parser.add_argument('--n-trials', type=int, default=10,
                     help='number of different train/test splits')
+parser.add_argument('--algorithm', type=str, default='auto',
+                    help='knn search algorithm (default: "auto")')
 parser.add_argument('--parallel', type=str2bool, default=False, metavar='P',
                     help='use multiprocessors')
 parser.add_argument('--dataset', type=str, default='MiniBooNE',
@@ -25,12 +30,11 @@ parser.add_argument('--dataset', type=str, default='MiniBooNE',
                              'SUSY', 'HIGGS', 'BNGLetter',
                              'WineQuality', 'YearPredictionMSD'])
 parser.add_argument('--main-path', type=str, default='.')
+parser.add_argument('--k-oracle-max', type=int, default=1025)
 
 args = parser.parse_args()
-
-
-
 dataset = getattr(datasets, args.dataset)(root=args.main_path)
+
 
 def parse_descriptor(key):
     """
@@ -62,7 +66,7 @@ def run():
     keys = ['oracle_kNN',
             'split_1NN', 'soft_big_1NN', 'big_1NN',
             'split_3NN', 'hard_split_3NN', 'soft_big_3NN', 'big_3NN',]
-    ks = [1, 3, 5, 9, 17, 33, 65, 129, 257, 513, 1025]
+    ks = [2 ** logk + 1 for logk in range(np.ceil(np.log2(args.k_oracle_max)).astype(int))]
     error_rates = {key: np.zeros((len(ks), n_trials)) for key in keys}
     elapsed_times = {key: np.zeros((len(ks), n_trials)) for key in keys}
 
@@ -75,7 +79,7 @@ def run():
                 start = timer()
                 if key.startswith('oracle'):
                     Predictor = KNeighborsClassifier if dataset.classification else KNeighborsRegressor
-                    predictor = Predictor(n_neighbors=k_oracle)
+                    predictor = Predictor(n_neighbors=k_oracle, n_jobs=-1 if args.parallel else None)
                     predictor.fit(X_train, y_train)
                     print('Running {} with {} ({}/{}) using {}'.format(key, k_oracle, n + 1, n_trials, predictor._fit_method), end=': ')
                     y_test_pred = predictor.predict(X_test)
@@ -103,8 +107,9 @@ def run():
 
     # Store data (serialize)
     import pickle
-    data = dict(ks=ks, keys=keys, elapsed_times=elapsed_times, error_rates=error_rates)
-    filename = '{}_test{}.pickle'.format(dataset.name, args.test_size)
+    data = dict(ks=ks, keys=keys, elapsed_times=elapsed_times, error_rates=error_rates,
+                cpu_info=cpuinfo.get_cpu_info())
+    filename = '{}_test{}_{}tr_{}cores.pickle'.format(dataset.name, args.test_size, args.n_trials, cpu_count())
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
