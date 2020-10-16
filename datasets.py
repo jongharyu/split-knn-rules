@@ -126,8 +126,7 @@ class GISETTE(Dataset):
             classes = []
             for row in f.readlines():
                 classes.append((row.strip()).split(" "))
-        y_train = np.array(classes).astype(int)
-        y_train = y_train[:, 0]
+        y_train = (np.array(classes).astype(int).squeeze() == np.ones(len(classes))).astype(int)
 
         with open("{}/data/GISETTE/gisette_valid.data".format(root)) as f:
             data = []

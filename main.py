@@ -79,7 +79,8 @@ def run():
                 start = timer()
                 if key.startswith('oracle'):
                     Predictor = KNeighborsClassifier if dataset.classification else KNeighborsRegressor
-                    predictor = Predictor(n_neighbors=k_oracle, n_jobs=-1 if args.parallel else None)
+                    predictor = Predictor(n_neighbors=k_oracle, n_jobs=-1 if args.parallel else None,
+                                          algorithm=args.algorithm)
                     predictor.fit(X_train, y_train)
                     print('Running {} with {} ({}/{}) using {}'.format(key, k_oracle, n + 1, n_trials, predictor._fit_method), end=': ')
                     y_test_pred = predictor.predict(X_test)
@@ -90,7 +91,8 @@ def run():
                     distance_selective, thresholding, n_neighbors = parse_descriptor(key)
                     regressor = SplitKNeighborsRegressor(n_neighbors=n_neighbors,
                                                          distance_selective=distance_selective,
-                                                         thresholding=thresholding)
+                                                         thresholding=thresholding,
+                                                         algorithm=args.algorithm)
                     n_splits = k_oracle
                     P = get_random_split(n_splits, [X_train, y_train])
                     regressor.fit(P)
@@ -109,7 +111,10 @@ def run():
     import pickle
     data = dict(ks=ks, keys=keys, elapsed_times=elapsed_times, error_rates=error_rates,
                 cpu_info=cpuinfo.get_cpu_info())
-    filename = '{}_test{}_{}tr_{}cores.pickle'.format(dataset.name, args.test_size, args.n_trials, cpu_count())
+    filename = '{}_test{}_{}tr_{}cores_alg{}.pickle'.format(
+        dataset.name, args.test_size, args.n_trials, cpu_count(),
+        args.algorithm,
+    )
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
