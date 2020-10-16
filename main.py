@@ -59,9 +59,9 @@ def run():
 
     n_trials = args.n_trials
 
-    keys = ['split_1NN', 'soft_big_1NN', 'big_1NN',
-            'split_3NN', 'hard_split_3NN', 'soft_big_3NN', 'big_3NN',
-            'oracle_kNN',]
+    keys = ['oracle_kNN',
+            'split_1NN', 'soft_big_1NN', 'big_1NN',
+            'split_3NN', 'hard_split_3NN', 'soft_big_3NN', 'big_3NN',]
     ks = [1, 3, 5, 9, 17, 33, 65, 129, 257, 513, 1025]
     error_rates = {key: np.zeros((len(ks), n_trials)) for key in keys}
     elapsed_times = {key: np.zeros((len(ks), n_trials)) for key in keys}
