@@ -68,9 +68,8 @@ def run():
 
     for key in keys:
         for i, k_oracle in enumerate(ks):
-            print('Running {} with {}'.format(key, k_oracle), end='; ')
             for n in range(n_trials):
-                print(n, end=' ')
+                print('Running {} with {} ({}/{})'.format(key, k_oracle, n+1, n_trials), end=': ')
                 # Split dataset at random
                 X_train, X_test, y_train, y_test = dataset.train_test_split(test_size=args.test_size, seed=n)
 
@@ -97,9 +96,9 @@ def run():
 
                 elapsed_times[key][i, n] = timer() - start
                 error_rates[key][i, n] = compute_error_rate(y_test_pred, y_test)
-
-            print(elapsed_times[key][i, :].mean())
-        print(error_rates[key])
+                print("{} / {:.2f}s".format(error_rates, elapsed_times))
+            print("Mean error rates: {}".format(elapsed_times[key][i, :].mean()))
+        print(key, error_rates[key])
 
     # Store data (serialize)
     import pickle
