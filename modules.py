@@ -69,7 +69,7 @@ class KNeighborsClassifierWithCrossValidation(KNeighborsClassifier):
 
 
 class SplitKNeighborsRegressor:
-    def __init__(self, n_neighbors, kappa=0.9, distance_selective=True, thresholding=False, algorithm='kd_tree'):
+    def __init__(self, n_neighbors, kappa=0.9, distance_selective=True, thresholding=False, algorithm='auto'):
         # algorithms: one of {'auto', 'ball_tree', 'kd_tree', 'brute'}
 
         self.distance_selective = distance_selective  # if True, select top local estimates based on knn distances

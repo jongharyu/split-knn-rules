@@ -63,6 +63,8 @@ def run():
             'split_1NN', 'soft_big_1NN', 'big_1NN',
             'split_3NN', 'hard_split_3NN', 'soft_big_3NN', 'big_3NN',]
     ks = [1, 3, 5, 9, 17, 33, 65, 129, 257, 513, 1025]
+    keys = ['split_1NN']
+    ks =  [513, 8193, 4097]
     error_rates = {key: np.zeros((len(ks), n_trials)) for key in keys}
     elapsed_times = {key: np.zeros((len(ks), n_trials)) for key in keys}
 
@@ -97,7 +99,7 @@ def run():
                 elapsed_times[key][i, n] = timer() - start
                 error_rates[key][i, n] = compute_error_rate(y_test_pred, y_test)
                 print("{} / {:.2f}s".format(error_rates[key][i, n], elapsed_times[key][i, n]))
-            print("Mean error rates: {}".format(elapsed_times[key][i, :].mean()))
+            print("Mean error rates: {}".format(error_rates[key][i, :].mean()))
         print(key, error_rates[key])
 
     # Store data (serialize)
