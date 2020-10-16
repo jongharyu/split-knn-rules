@@ -63,15 +63,12 @@ def run():
             'split_1NN', 'soft_big_1NN', 'big_1NN',
             'split_3NN', 'hard_split_3NN', 'soft_big_3NN', 'big_3NN',]
     ks = [1, 3, 5, 9, 17, 33, 65, 129, 257, 513, 1025]
-    keys = ['split_1NN']
-    ks =  [513, 8193, 4097]
     error_rates = {key: np.zeros((len(ks), n_trials)) for key in keys}
     elapsed_times = {key: np.zeros((len(ks), n_trials)) for key in keys}
 
     for key in keys:
         for i, k_oracle in enumerate(ks):
             for n in range(n_trials):
-                print('Running {} with {} ({}/{})'.format(key, k_oracle, n+1, n_trials), end=': ')
                 # Split dataset at random
                 X_train, X_test, y_train, y_test = dataset.train_test_split(test_size=args.test_size, seed=n)
 
@@ -80,6 +77,7 @@ def run():
                     Predictor = KNeighborsClassifier if dataset.classification else KNeighborsRegressor
                     predictor = Predictor(n_neighbors=k_oracle)
                     predictor.fit(X_train, y_train)
+                    print('Running {} with {} ({}/{}) using {}'.format(key, k_oracle, n + 1, n_trials, predictor._fit_method), end=': ')
                     y_test_pred = predictor.predict(X_test)
 
                 else:
@@ -92,14 +90,15 @@ def run():
                     n_splits = k_oracle
                     P = get_random_split(n_splits, [X_train, y_train])
                     regressor.fit(P)
+                    print('Running {} with {} ({}/{}) using {}'.format(key, k_oracle, n + 1, n_trials, regressor._fit_method), end=': ')
                     y_test_pred = regressor.predict(X_test, parallel=args.parallel)
                     if dataset.classification:
                         y_test_pred = y_test_pred > 1 / 2
 
                 elapsed_times[key][i, n] = timer() - start
                 error_rates[key][i, n] = compute_error_rate(y_test_pred, y_test)
-                print("{} / {:.2f}s".format(error_rates[key][i, n], elapsed_times[key][i, n]))
-            print("Mean error rates: {}".format(error_rates[key][i, :].mean()))
+                print("\tError rate = {:.4f} ({:.2f}s)".format(error_rates[key][i, n], elapsed_times[key][i, n]))
+            print("\tAverage error rates: {:.4f}".format(error_rates[key][i, :].mean()))
         print(key, error_rates[key])
 
     # Store data (serialize)
@@ -109,21 +108,21 @@ def run():
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # for i, ks in enumerate()
-    for i, key in enumerate(keys):
-        plt.errorbar(ks if key not in ['split_1NN'] else np.array(ks),
-                     error_rates[key].mean(axis=1),
-                     error_rates[key].std(axis=1),
-                     marker=markers[i], capsize=3, label=key)
-        plt.axhline(error_rates['soft_big_1NN'].mean(axis=1).min())
-        plt.axhline(error_rates['oracle_kNN'].mean(axis=1).min())
-    plt.legend()
-    plt.xscale('log', nonposx='clip')
-    plt.grid('on')
-    plt.title('{} ({} different {}/{} splits)'.format(args.dataset,
-                                                      args.n_trials,
-                                                      int(100 * (1 - args.test_size)),
-                                                      int(100 * args.test_size)))
+    # # for i, ks in enumerate()
+    # for i, key in enumerate(keys):
+    #     plt.errorbar(ks if key not in ['split_1NN'] else np.array(ks),
+    #                  error_rates[key].mean(axis=1),
+    #                  error_rates[key].std(axis=1),
+    #                  marker=markers[i], capsize=3, label=key)
+    #     plt.axhline(error_rates['soft_big_1NN'].mean(axis=1).min())
+    #     plt.axhline(error_rates['oracle_kNN'].mean(axis=1).min())
+    # plt.legend()
+    # plt.xscale('log', nonposx='clip')
+    # plt.grid('on')
+    # plt.title('{} ({} different {}/{} splits)'.format(args.dataset,
+    #                                                   args.n_trials,
+    #                                                   int(100 * (1 - args.test_size)),
+    #                                                   int(100 * args.test_size)))
 
 
 if __name__ == '__main__':

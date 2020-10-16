@@ -21,6 +21,52 @@ def get_random_split(num_splits, data):
     return [np.array_split(x, num_splits) for x in data]
 
 
+from sklearn.neighbors._base import _get_weights
+from sklearn.utils import check_array
+class ModifiedKNeighborsRegressor(KNeighborsRegressor):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def predict(self, X):
+        """Predict the target for the provided data
+
+        Parameters
+        ----------
+        X : array-like of shape (n_queries, n_features), \
+                or (n_queries, n_indexed) if metric == 'precomputed'
+            Test samples.
+
+        Returns
+        -------
+        y : ndarray of shape (n_queries,) or (n_queries, n_outputs), dtype=int
+            Target values.
+        """
+        X = check_array(X, accept_sparse='csr')
+
+        neigh_dist, neigh_ind = self.kneighbors(X)
+
+        weights = _get_weights(neigh_dist, self.weights)
+
+        _y = self._y
+        if _y.ndim == 1:
+            _y = _y.reshape((-1, 1))
+
+        if weights is None:
+            y_pred = np.mean(_y[neigh_ind], axis=1)
+        else:
+            y_pred = np.empty((X.shape[0], _y.shape[1]), dtype=np.float64)
+            denom = np.sum(weights, axis=1)
+
+            for j in range(_y.shape[1]):
+                num = np.sum(_y[neigh_ind, j] * weights, axis=1)
+                y_pred[:, j] = num / denom
+
+        if self._y.ndim == 1:
+            y_pred = y_pred.ravel()
+
+        return y_pred, neigh_dist[:, -1]  # return the k-th NN distances
+
+
 class KNeighborsClassifierWithCrossValidation(KNeighborsClassifier):
     # Reference: https://github.com/lirongx/SubNN/blob/master/SubNN.py
     def __init__(self, *args, **kwargs):
@@ -82,17 +128,20 @@ class SplitKNeighborsRegressor:
         self.sigma = 1 - np.exp(-n_neighbors / 4)
 
         self.local_regressors = []
+        self._fit_method = None
 
     def fit(self, split_data):
         # split_data: [splits of X, splits of y]
         self.M = len(split_data[0])
         # TODO: check if classifier.predict_proba is equivalent to regressor.predict for default cases
         self.local_regressors = [
-            KNeighborsRegressor(n_neighbors=self.n_neighbors, algorithm=self.algorithm).fit(
-                split_data[0][i], split_data[1][i]
+            ModifiedKNeighborsRegressor(n_neighbors=self.n_neighbors, algorithm=self.algorithm).fit(
+                split_data[0][i], split_data[1][i],
             )
             for i in range(self.M)
         ]
+        self._fit_method = self.local_regressors[0]._fit_method
+
         if self.distance_selective:
             L = int(np.floor(self.kappa * self.M * self.sigma))  # number of estimates to be selected
             self.L = max([L, 1])
@@ -111,16 +160,14 @@ class SplitKNeighborsRegressor:
         if not parallel:
             # Local kNN operations
             for m, regressor in enumerate(self.local_regressors):
-                local_estimates[m] = regressor.predict(X)
-                knn_distances[m] = regressor.kneighbors(X)[0][:, -1]  # (num_queries,)
-
+                local_estimates[m], knn_distances[m] = regressor.predict(X)  # (num_queries,)
         else:  # parallel processing
             with mp.Pool() as pool:
                 local_returns = pool.map(predict, zip(self.local_regressors, [X] * self.M))
             local_estimates, knn_distances = [np.array(l) for l in list(zip(*local_returns))]
 
         elapsed_time = timer() - start
-        print("Local kNN operations: {} / {} (per split)".format(elapsed_time, elapsed_time / self.M))
+        print("\n\tLocal kNN operations: {:.2f}s / {:.4f}s (per split)".format(elapsed_time, elapsed_time / self.M))
 
         if self.thresholding:
             local_estimates = (local_estimates > 0.5)
@@ -130,15 +177,15 @@ class SplitKNeighborsRegressor:
             start = timer()
             chosen_indices = np.argpartition(knn_distances, self.L, axis=0)[:self.L, :]  # (L, num_queries); takes O(M)
             elapsed_time = timer() - start
-            print("Find L distances: {}".format(elapsed_time))
+            print("\tFind L distances: {:.4f}s".format(elapsed_time))
 
-            start = timer()
+            # start = timer()
             final_estimate = local_estimates[
                 chosen_indices,
                 np.repeat(np.arange(num_queries).reshape(1, num_queries), self.L, axis=0)
             ].mean(axis=0)  # (num_queries)
-            elapsed_time = timer() - start
-            print("Select and comput mean: {}".format(elapsed_time))
+            # elapsed_time = timer() - start
+            # print("Select and compute mean: {:.4f}s".format(elapsed_time))
         else:
             final_estimate = local_estimates.mean(axis=0)  # (num_queries,)
 
@@ -148,4 +195,4 @@ class SplitKNeighborsRegressor:
 # for multiprocessing
 def predict(model_data):
     model, data = model_data
-    return model.predict(data), model.kneighbors(data)[0][:, -1]
+    return model.predict(data)
