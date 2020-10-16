@@ -66,7 +66,7 @@ def run():
     keys = ['oracle_kNN',
             'split_1NN', 'soft_big_1NN', 'big_1NN',
             'split_3NN', 'hard_split_3NN', 'soft_big_3NN', 'big_3NN',]
-    ks = [2 ** logk + 1 for logk in range(np.ceil(np.log2(args.k_oracle_max)).astype(int))]
+    ks = [1] + [2 ** logk + 1 for logk in range(1, np.ceil(np.log2(args.k_oracle_max)).astype(int))]
     error_rates = {key: np.zeros((len(ks), n_trials)) for key in keys}
     elapsed_times = {key: np.zeros((len(ks), n_trials)) for key in keys}
 
