@@ -1,16 +1,19 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 import argparse
+import pickle
 import matplotlib as mpl
-import matplotlib.pyplot as plt
-from multiprocessing import cpu_count
 import numpy as np
-from sklearn.neighbors import KNeighborsClassifier,KNeighborsRegressor
+from multiprocessing import cpu_count
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from timeit import default_timer as timer
 
 import cpuinfo
 
 import datasets
-from modules import compute_error_rate, get_random_split, SplitKNeighborsRegressor
-from utils import str2bool
+from regressor import compute_error_rate, SplitKNeighborsRegressor
+from utils import generate_keys, str2bool
 
 
 mpl.style.use( 'ggplot' )
@@ -35,81 +38,75 @@ parser.add_argument('--k-oracle-max', type=int, default=1025)
 args = parser.parse_args()
 dataset = getattr(datasets, args.dataset)(root=args.main_path)
 
-
-def parse_descriptor(key):
-    """
-                 | distance_selective
-    thresholding | 0              1
-    -------------------------------------------
-               0 | soft_big_NN    split_NN
-               1 | big_NN         hard_split_NN
-    """
-
-    if 'split' in key:
-        distance_selective = True
-        thresholding = True if 'hard' in key else False
-    else:
-        distance_selective = False
-        thresholding = False if 'soft' in key else True
-
-    n_neighbors = int(key.split('_')[-1][0])
-
-    return distance_selective, thresholding, n_neighbors
-
-
 def run():
     if args.parallel:
         print("Parallel processing...")
 
     n_trials = args.n_trials
-
-    keys = ['oracle_kNN',
-            'split_1NN', 'soft_big_1NN', 'big_1NN',
-            'split_3NN', 'hard_split_3NN', 'soft_big_3NN', 'big_3NN',]
     ks = [1] + [2 ** logk + 1 for logk in range(1, np.ceil(np.log2(args.k_oracle_max)).astype(int))]
+    base_k = [1, 3, 11, 31]  # for split methods
+    keys = ['oracle_kNN'] + generate_keys(base_k)
     error_rates = {key: np.zeros((len(ks), n_trials)) for key in keys}
     elapsed_times = {key: np.zeros((len(ks), n_trials)) for key in keys}
 
-    for key in keys:
+    # Oracle kNN
+    key = 'oracle_kNN'
+    for n in range(n_trials):
+        # Split dataset at random
+        X_train, X_test, y_train, y_test = dataset.train_test_split(test_size=args.test_size, seed=n)
         for i, k_oracle in enumerate(ks):
+            start = timer()
+            Predictor = KNeighborsClassifier if dataset.classification else KNeighborsRegressor
+            predictor = Predictor(n_neighbors=k_oracle,
+                                  n_jobs=-1 if args.parallel else None,
+                                  algorithm=args.algorithm)
+            predictor.fit(X_train, y_train)
+            print('Running oracle with k={} ({}/{}) using {}'.format(
+                k_oracle, n + 1, n_trials,
+                predictor._fit_method), end=': '
+            )
+            y_test_pred = predictor.predict(X_test)
+            elapsed_times[key][i, n] = timer() - start
+            error_rates[key][i, n] = compute_error_rate(y_test_pred, y_test)
+
+            print("\tError rate = {:.4f} ({:.2f}s)".format(error_rates[key][i, n], elapsed_times[key][i, n]))
+        print("\tAverage error rates: {:.4f}".format(error_rates[key][i, :].mean()))
+    print(key, error_rates[key])
+
+    for n_neighbors in base_k:
+        for i, n_splits in enumerate(ks):
             for n in range(n_trials):
+                if n_splits == 1:
+                    break
+
                 # Split dataset at random
                 X_train, X_test, y_train, y_test = dataset.train_test_split(test_size=args.test_size, seed=n)
+                regressor = SplitKNeighborsRegressor(n_neighbors=n_neighbors, algorithm=args.algorithm)
+                X_split, y_split = regressor.get_random_split([X_train, y_train], n_splits)
 
                 start = timer()
-                if key.startswith('oracle'):
-                    Predictor = KNeighborsClassifier if dataset.classification else KNeighborsRegressor
-                    predictor = Predictor(n_neighbors=k_oracle, n_jobs=-1 if args.parallel else None,
-                                          algorithm=args.algorithm)
-                    predictor.fit(X_train, y_train)
-                    print('Running {} with {} ({}/{}) using {}'.format(key, k_oracle, n + 1, n_trials, predictor._fit_method), end=': ')
-                    y_test_pred = predictor.predict(X_test)
-
-                else:
-                    if k_oracle == 1:
-                        break
-                    distance_selective, thresholding, n_neighbors = parse_descriptor(key)
-                    regressor = SplitKNeighborsRegressor(n_neighbors=n_neighbors,
-                                                         distance_selective=distance_selective,
-                                                         thresholding=thresholding,
-                                                         algorithm=args.algorithm)
-                    n_splits = k_oracle
-                    P = get_random_split(n_splits, [X_train, y_train])
-                    regressor.fit(P)
-                    print('Running {} with {} ({}/{}) using {}'.format(key, k_oracle, n + 1, n_trials, regressor._fit_method), end=': ')
-                    y_test_pred = regressor.predict(X_test, parallel=args.parallel)
-                    if dataset.classification:
-                        y_test_pred = y_test_pred > 1 / 2
-
-                elapsed_times[key][i, n] = timer() - start
-                error_rates[key][i, n] = compute_error_rate(y_test_pred, y_test)
-                print("\tError rate = {:.4f} ({:.2f}s)".format(error_rates[key][i, n], elapsed_times[key][i, n]))
-            print("\tAverage error rates: {:.4f}".format(error_rates[key][i, :].mean()))
-        print(key, error_rates[key])
+                regressor.fit(X_split, y_split)
+                print('Running split-{}NN rules with {} splits ({}/{}) using {}'.format(
+                    n_neighbors, n_splits,
+                    n + 1, n_trials,
+                    regressor._fit_method), end=': ')
+                y_test_pred = regressor.predict(X_test, parallel=args.parallel)
+                elapsed_time = timer() - start
+                for key in y_test_pred:
+                    y_test_pred[key] = (y_test_pred[key] > .5) if dataset.classification else y_test_pred[key]
+                    elapsed_times[key][i, n] = elapsed_time
+                    error_rates[key][i, n] = compute_error_rate(y_test_pred[key], y_test)
+                    print("\tError rate ({}) = {:.4f} ({:.2f}s)".format(key, error_rates[key][i, n], elapsed_times[key][i, n]))
+            else:
+                for key in y_test_pred:
+                    print("\tAverage error rates ({}): {:.4f}".format(key, error_rates[key][i, :].mean()))
+        else:
+            for key in y_test_pred:
+                print(key, error_rates[key])
 
     # Store data (serialize)
-    import pickle
-    data = dict(ks=ks, keys=keys, elapsed_times=elapsed_times, error_rates=error_rates,
+    data = dict(ks=ks, keys=keys,
+                elapsed_times=elapsed_times, error_rates=error_rates,
                 cpu_info=cpuinfo.get_cpu_info())
     filename = '{}_test{}_{}tr_{}cores_alg{}.pickle'.format(
         dataset.name, args.test_size, args.n_trials, cpu_count(),
@@ -117,22 +114,6 @@ def run():
     )
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-    # # for i, ks in enumerate()
-    # for i, key in enumerate(keys):
-    #     plt.errorbar(ks if key not in ['split_1NN'] else np.array(ks),
-    #                  error_rates[key].mean(axis=1),
-    #                  error_rates[key].std(axis=1),
-    #                  marker=markers[i], capsize=3, label=key)
-    #     plt.axhline(error_rates['soft_big_1NN'].mean(axis=1).min())
-    #     plt.axhline(error_rates['oracle_kNN'].mean(axis=1).min())
-    # plt.legend()
-    # plt.xscale('log', nonposx='clip')
-    # plt.grid('on')
-    # plt.title('{} ({} different {}/{} splits)'.format(args.dataset,
-    #                                                   args.n_trials,
-    #                                                   int(100 * (1 - args.test_size)),
-    #                                                   int(100 * args.test_size)))
 
 
 if __name__ == '__main__':
