@@ -1,21 +1,68 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from scipy.stats import multivariate_normal
 from sklearn.model_selection import train_test_split
 
-import data.miniboone as mb
+import miniboone_utils as mb
 
 
 class Dataset:
     def __init__(self):
         pass
 
+    @property
+    def data(self):
+        return self.X, self.y
+
     @staticmethod
-    def load_and_preprocess(root):
+    def load_and_preprocess(*args, **kwargs):
         raise NotImplementedError
 
     def train_test_split(self, test_size=0.4, seed=0):
         return train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
+
+
+class MixtureOfTwoGaussians:
+    def __init__(self, prior=.5, sigma=1., d=5):
+        self.prior = prior
+        self.params0 = np.zeros(d), np.eye(d)
+        self.params1 = np.ones(d), sigma ** 2 * np.eye(d)
+        self.prior = prior
+        self.d = d
+
+        self.classification = True
+        self.name = 'mog'
+
+    def compute_bayes_error(self, n_samples=100000):
+        X = self.generate(n_samples)[0]
+        eta = self.eta(X)
+        return np.minimum(eta, 1 - eta).mean()
+
+    def eta(self, x):
+        # return P(Y=1|X=x)
+        if len(x.shape) == 1:  # for 1-dim case
+            x = x[:, np.newaxis]
+        p0 = multivariate_normal.pdf(x, *self.params0)
+        p1 = multivariate_normal.pdf(x, *self.params1)
+        return self.prior * p1 / (self.prior * p1 + (1 - self.prior) * p0)
+
+    def generate(self, n_samples):
+        # stratified sampling from mixture of Gaussians
+        n_samples1 = np.ceil(n_samples * self.prior).astype(int)
+        n_samples0 = n_samples - n_samples1
+        X0 = np.random.multivariate_normal(*self.params0, size=n_samples0)
+        X1 = np.random.multivariate_normal(*self.params1, size=n_samples1)
+        y0 = np.ones(n_samples0) * 0
+        y1 = np.ones(n_samples1) * 1
+        X = np.concatenate([X0, X1], axis=0)
+        y = np.concatenate([y0, y1], axis=0)
+        return X, y
+
+    def train_test_split(self, n_train=100000, n_test=10000):
+        X_train, y_train = self.generate(n_train)
+        X_test, y_test = self.generate(n_test)
+        return X_train, y_train, X_test, y_test
 
 
 class HTRU2(Dataset):
