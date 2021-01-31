@@ -31,7 +31,7 @@ class GridSearchWithCrossValidationForKNeighborsClassifier:
 
                 if k > len(y_train):
                     k = len(y_train)
-                classifier = KNeighborsClassifier(n_neighbors=k).fit(X_train, y_train)
+                classifier = KNeighborsClassifier(n_neighbors=k, njobs=-1).fit(X_train, y_train)
                 y_pred = classifier.predict(X_valid)
                 errors.append(compute_error_rate(y_valid, y_pred))
 

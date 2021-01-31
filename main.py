@@ -84,10 +84,11 @@ def run():
         print('\t{} (M={}): '.format(key, n_splits), end='')
         y_test_pred = regressor.predict(X_test, parallel=args.parallel)
         elapsed_time = timer() - start
-        # for key in y_test_pred:
-        y_test_pred = (y_test_pred > .5) if dataset.classification else y_test_pred
-        elapsed_times[key][n] = elapsed_time
-        error_rates[key][n] = compute_error_rate(y_test_pred, y_test)
+        for key_ in y_test_pred:
+            if key_.startswith('Msplit_select1'):
+                y_test_pred[key_] = (y_test_pred[key_] > .5) if dataset.classification else y_test_pred[key_]
+                error_rates[key][n] = compute_error_rate(y_test_pred[key_], y_test)
+                elapsed_times[key][n] = elapsed_time
         print("\t\t{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
     # Store data (serialize)
