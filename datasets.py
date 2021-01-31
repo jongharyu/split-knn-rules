@@ -4,7 +4,7 @@ from pathlib import Path
 from scipy.stats import multivariate_normal
 from sklearn.model_selection import train_test_split
 
-from src import miniboone_utils as mb
+import miniboone_utils as mb
 
 
 # TODO: implement original_split method that returns the original train-valid-test split

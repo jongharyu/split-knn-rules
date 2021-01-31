@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-import sys
 from collections import defaultdict
 from functools import partial
 
@@ -9,10 +8,10 @@ import pickle
 from sklearn.neighbors import KNeighborsClassifier
 from timeit import default_timer as timer
 
-from src.datasets import MixtureOfTwoGaussians
-from src.models.regressor import SplitSelectKNeighborsRegressor
-from src.validation import compute_error_rate
-from src.utils import generate_keys
+from datasets import MixtureOfTwoGaussians
+from regressor import SplitSelectKNeighborsRegressor
+from validation import compute_error_rate
+from utils import generate_keys
 
 # Experiment 1. Simulation with mixture of Gaussians
 k0 = 10
@@ -73,7 +72,7 @@ for sigma in sigmas:
                                                            algorithm='auto',
                                                            verbose=False).fit(X_train, y_train)
                 print('\t{} (M={}): '.format(keys[0], n_splits), end='')
-                y_test_pred = regressor.predict(X_test, parallel=True)
+                y_test_pred = regressor.predict(X_test, parallel=False)
                 elapsed_time = timer() - start
                 for key in keys:
                     y_test_pred[key] = y_test_pred[key] > .5

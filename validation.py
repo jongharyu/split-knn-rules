@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.neighbors import KNeighborsClassifier
 
-from models.regressor import SplitSelectKNeighborsRegressor
+from regressor import SplitSelectKNeighborsRegressor
 
 
 def compute_error_rate(truth, prediction):

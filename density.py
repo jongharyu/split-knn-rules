@@ -6,7 +6,7 @@ from sklearn.neighbors._base import _check_weights, NeighborsBase, KNeighborsMix
 from sklearn.utils import check_array
 from sklearn.utils.validation import _deprecate_positional_args, check_is_fitted
 
-from src.models.regressor import SplitKNeighbors
+from regressor import SplitKNeighbors
 
 
 def find_unit_volume(d, p=2):

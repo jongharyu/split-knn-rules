@@ -3,7 +3,6 @@
 
 import argparse
 import pickle
-import matplotlib as mpl
 import numpy as np
 from multiprocessing import cpu_count
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
@@ -11,11 +10,11 @@ from timeit import default_timer as timer
 
 import cpuinfo
 
-from src import datasets
-from src.models.regressor import SplitSelectKNeighborsRegressor
-from src.validation import compute_error_rate
-from src.utils import generate_keys, str2bool
-from src.validation import GridSearchWithCrossValidationForKNeighborsClassifier, GridSearchWithCrossValidationForSplitSelect1NN
+import datasets
+from regressor import SplitSelectKNeighborsRegressor
+from validation import compute_error_rate
+from utils import str2bool
+from validation import GridSearchWithCrossValidationForKNeighborsClassifier
 
 # mpl.style.use( 'ggplot' )
 markers = ['o', 's', '*', 'v', '^', 'D', 'h', 'x', '+', '8', 'p', '<', '>', 'd', 'H', 1, 2, 3, 4]
