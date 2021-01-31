@@ -1,4 +1,3 @@
-import multiprocessing as mp
 from timeit import default_timer as timer
 
 import numpy as np
@@ -7,7 +6,7 @@ from sklearn.neighbors._base import _check_weights, NeighborsBase, KNeighborsMix
 from sklearn.utils import check_array
 from sklearn.utils.validation import _deprecate_positional_args, check_is_fitted
 
-from regressor import SplitKNeighbor
+from src.models.regressor import SplitKNeighbors
 
 
 def find_unit_volume(d, p=2):
@@ -15,7 +14,7 @@ def find_unit_volume(d, p=2):
     return (2 * gamma(1 + 1 / p)) ** d / gamma(1 + d / p)
 
 
-class KNeighborDensity(NeighborsBase, KNeighborsMixin, UnsupervisedMixin):
+class KNeighborsDensity(NeighborsBase, KNeighborsMixin, UnsupervisedMixin):
     """Density estimation based on k-nearest neighbors.
 
     Read more in the :ref:`User Guide <density>`.
@@ -271,12 +270,12 @@ class KNeighborDensity(NeighborsBase, KNeighborsMixin, UnsupervisedMixin):
         raise NotImplementedError
 
 
-class SplitKNeighborDensity(SplitKNeighbor):
+class SplitKNeighborDensity(SplitKNeighbors):
     def __init__(self, **kwargs):
         # algorithm: one of {'auto', 'ball_tree', 'kd_tree', 'brute'}
         super().__init__(**kwargs)
         self.local_models = []
-        self.base_model = KNeighborDensity
+        self.base_model = KNeighborsDensity
 
     def score_samples(self, *args, **kwargs):
         return self.predict(*args, **kwargs)

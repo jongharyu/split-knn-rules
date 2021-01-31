@@ -4,11 +4,16 @@ from pathlib import Path
 from scipy.stats import multivariate_normal
 from sklearn.model_selection import train_test_split
 
-import miniboone_utils as mb
+from src import miniboone_utils as mb
+
+
+# TODO: implement original_split method that returns the original train-valid-test split
 
 
 class Dataset:
     def __init__(self):
+        self.X = None
+        self.y = None
         pass
 
     @property

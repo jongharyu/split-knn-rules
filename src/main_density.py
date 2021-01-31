@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import norm
 import matplotlib.pyplot as plt
-from density import KNeighborDensity, SplitKNeighborDensity
+from src.models.density import SplitKNeighborDensity
 
 # ----------------------------------------------------------------------
 # Plot a 1D density example

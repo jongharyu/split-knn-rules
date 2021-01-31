@@ -12,7 +12,9 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def generate_keys(base_k):
-    base_keys = ['soft1_selective1', 'soft1_selective0', 'soft0_selective1', 'soft0_selective0']
+    base_keys = ['Msplit_select1', # proposed
+                 'Msplit_select0', # \approx big k-NN
+                ]
     keys = []
     for k in base_k:
         keys.extend(['{}_{}NN'.format(key, k) for key in base_keys])
