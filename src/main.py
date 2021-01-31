@@ -102,7 +102,7 @@ def run():
     data = dict(keys=keys,
                 elapsed_times=elapsed_times, error_rates=error_rates,
                 cpu_info=cpuinfo.get_cpu_info())
-    filename = '{}_test{}_{}tr_{}cores_alg{}.pickle'.format(
+    filename = 'results/{}_test{}_{}tr_{}cores_alg{}.pickle'.format(
         dataset.name, args.test_size, args.n_trials, cpu_count(),
         args.algorithm,
     )
