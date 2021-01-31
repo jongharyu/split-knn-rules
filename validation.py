@@ -61,13 +61,12 @@ class GridSearchWithCrossValidationForKNeighborsClassifier:
         return k_opt
 
 
-class GridSearchWithCrossValidationForSplitSelect1NN:
-    def __init__(self, n_folds=5, n_repeat=1, parallel=False):
-        self.n_folds = n_folds
-        self.n_repeat = n_repeat
+class GridSearchWithCrossValidationForSplitSelect1NN(GridSearchWithCrossValidationForKNeighborsClassifier):
+    def __init__(self, parallel=False, **kwargs):
+        super().__init__(**kwargs)
         self.parallel = parallel
         
-    def cross_validate(self, X, y, n_splits, select_ratio):
+    def cross_validate(self, X, y, n_splits):
         # calculate error rate of a given k through cross validation
         errors = []
         for repeat in range(self.n_repeat):
@@ -83,35 +82,3 @@ class GridSearchWithCrossValidationForSplitSelect1NN:
                 errors.append(compute_error_rate(y_valid, y_valid_pred))
 
         return np.mean(errors)
-
-    def grid_search(self, X, y):
-        # search for an optimal k and fit
-        # 1) coarse search: find best k in [1,2,4,8,16,...]
-        n_splits_set = []
-        n_splits_err = []
-        n_splits = 2
-        while n_splits < np.sqrt(X.shape[0]):
-            n_splits_set.append(n_splits)
-            n_splits_err.append(self.cross_validate(X, y, n_splits, select_ratio=None))
-            n_splits = n_splits * 2
-        n_splits_opt_rough = n_splits_set[np.argmin(n_splits_err)]
-
-        # 2) fine search: find best k in [.5 * k_opt_rough - 10, 2 * k_opt_rough + 10]
-        n_splits_search_start = (max(2, int(.5 * n_splits_opt_rough) - 10) // 2) * 2 + 1
-        n_splits_search_end = int(min(2 * n_splits_opt_rough + 11, np.sqrt(X.shape[0])))
-        for n_splits in range(n_splits_search_start, n_splits_search_end, 2):
-            if n_splits not in n_splits_set:
-                n_splits_set.append(n_splits)
-                n_splits_err.append(self.cross_validate(X, y, n_splits, select_ratio=None))
-        n_splits_opt = n_splits_set[np.argmin(n_splits_err)]
-
-        # 3) find best select_ratio in np.linspace(1-exp(-1/4), 1, 10)
-        select_ratio_set = []
-        select_ratio_err = []
-        select_ratio_start = 1 - np.exp(-1 / 4)
-        for select_ratio in np.linspace(select_ratio_start, 0.9, 10):
-            select_ratio_set.append(select_ratio)
-            select_ratio_err.append(self.cross_validate(X, y, n_splits_opt, select_ratio=select_ratio))
-        select_ratio_opt = select_ratio_set[np.argmin(select_ratio_err)]
-
-        return n_splits_opt, select_ratio_opt

@@ -4,6 +4,8 @@
 import argparse
 import pickle
 import numpy as np
+from collections import defaultdict
+from functools import partial
 from multiprocessing import cpu_count
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from timeit import default_timer as timer
@@ -14,7 +16,7 @@ import datasets
 from regressor import SplitSelectKNeighborsRegressor
 from validation import compute_error_rate
 from utils import str2bool
-from validation import GridSearchWithCrossValidationForKNeighborsClassifier
+from validation import GridSearchWithCrossValidationForKNeighborsClassifier, GridSearchWithCrossValidationForSplitSelect1NN
 
 # mpl.style.use( 'ggplot' )
 markers = ['o', 's', '*', 'v', '^', 'D', 'h', 'x', '+', '8', 'p', '<', '>', 'd', 'H', 1, 2, 3, 4]
@@ -34,6 +36,7 @@ parser.add_argument('--dataset', type=str, default='MiniBooNE',
                              'WineQuality', 'YearPredictionMSD'])
 parser.add_argument('--main-path', type=str, default='.')
 parser.add_argument('--k-standard-max', type=int, default=1025)
+parser.add_argument('--n-folds', type=int, default=3)
 
 args = parser.parse_args()
 dataset = getattr(datasets, args.dataset)(root=args.main_path)
@@ -45,22 +48,31 @@ def run():
     n_trials = args.n_trials
     # ks = [1] + [2 ** logk + 1 for logk in range(1, np.ceil(np.log2(args.k_standard_max)).astype(int))]
     # base_k = [1, 3]  # for split methods
-    keys = ['standard_1NN', 'standard_kNN_CV', 'Msplit_1NN_CV']
-    error_rates = {key: np.zeros(n_trials) for key in keys}
-    elapsed_times = {key: np.zeros(n_trials) for key in keys}
+    keys = ['standard_1NN',
+            'standard_kNN',
+            'split_select1_1NN',
+            'split_select0_1NN']
+    error_rates = defaultdict(partial(np.zeros, n_trials))
+    elapsed_times = defaultdict(partial(np.zeros, n_trials))
+    model_selection_times = defaultdict(partial(np.zeros, n_trials))
+    best_params = defaultdict(partial(np.zeros, n_trials))
 
     for n in range(n_trials):
         # Split dataset at random
         X_train, X_test, y_train, y_test = dataset.train_test_split(test_size=args.test_size, seed=n)
 
         # Standard k-NN rules
-        for key in ['standard_1NN', 'standard_kNN_CV']:
+        for key in ['standard_1NN', 'standard_kNN']:
             n_neighbors = 1
-            if key == 'standard_kNN_CV':
+            model_selection_time = 0
+            if key == 'standard_kNN':
                 start = timer()
-                n_neighbors = GridSearchWithCrossValidationForKNeighborsClassifier(n_folds=5, n_repeat=1).grid_search(X_train, y_train)
-                print("Grid search with 5-fold CV: k={} (Elpased time = {:.2f}s)".format(n_neighbors, timer() - start))
-
+                n_neighbors = GridSearchWithCrossValidationForKNeighborsClassifier(n_folds=args.n_folds, n_repeat=1).grid_search(X_train, y_train)
+                model_selection_time = timer() - start
+                print("Grid search with {}-fold CV: k={} ({:.2f}s)".format(
+                    args.n_folds, n_neighbors, model_selection_time))
+            best_params[key] = n_neighbors
+            model_selection_times[key] = model_selection_time
             start = timer()
             Predictor = KNeighborsClassifier if dataset.classification else KNeighborsRegressor
             predictor = Predictor(n_neighbors=n_neighbors,
@@ -76,23 +88,31 @@ def run():
 
 
         # Split rules
-        key = 'Msplit_1NN_CV'
         start = timer()
-        n_splits = np.min([5 * n_neighbors, np.sqrt(X_train.shape[0])]).astype(int)
-        # print("Grid search with 5-fold CV: M={}, kappa={} (Elpased time = {:.2f}s)".format(n_splits, select_ratio, timer() - start))
-        regressor = SplitSelectKNeighborsRegressor(n_neighbors=1,
-                                                   n_splits=n_splits,
-                                                   select_ratio=None,
-                                                   algorithm=args.algorithm
-                                                   ).fit(X_train, y_train)
+        n_splits = GridSearchWithCrossValidationForSplitSelect1NN(
+            n_folds=args.n_folds, n_repeat=1, parallel=args.parallel
+        ).grid_search(X_train, y_train)
+        model_selection_time =  timer() - start
+        print("Grid search with {}-fold CV: k={} ({:.2f}s)".format(
+            args.n_folds, n_neighbors, model_selection_time)
+        )
+
+        start = timer()
+        regressor = SplitSelectKNeighborsRegressor(
+            n_neighbors=1,
+            n_splits=n_splits,
+            select_ratio=None,
+            algorithm=args.algorithm
+            ).fit(X_train, y_train)
         print('\t{} (M={}): '.format(key, n_splits), end='')
         y_test_pred = regressor.predict(X_test, parallel=args.parallel)
         elapsed_time = timer() - start
-        for key_ in y_test_pred:
-            if key_.startswith('Msplit_select1'):
-                y_test_pred[key_] = (y_test_pred[key_] > .5) if dataset.classification else y_test_pred[key_]
-                error_rates[key][n] = compute_error_rate(y_test_pred[key_], y_test)
-                elapsed_times[key][n] = elapsed_time
+        for key in y_test_pred:
+            model_selection_times[key][n] = model_selection_time
+            best_params[key][n] = n_splits
+            y_test_pred[key] = (y_test_pred[key] > .5) if dataset.classification else y_test_pred[key]
+            error_rates[key][n] = compute_error_rate(y_test_pred[key], y_test)
+            elapsed_times[key][n] = elapsed_time
         print("\t\t{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
     # Store data (serialize)

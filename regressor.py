@@ -162,12 +162,12 @@ class SplitSelectKNeighborsRegressor(SplitKNeighbors):
 
         final_estimates = dict()
         # start = timer()
-        final_estimates['Msplit_select1_{}NN'.format(self.n_neighbors)] = \
+        final_estimates['split_select1_{}NN'.format(self.n_neighbors)] = \
             local_estimates[
             selected_indices,
             np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_select, axis=0)
         ].mean(axis=0)  # (n_queries)
-        final_estimates['Msplit_select0_{}NN'.format(self.n_neighbors)] = \
+        final_estimates['split_select0_{}NN'.format(self.n_neighbors)] = \
             local_estimates.mean(axis=0)  # (n_queries,)
         # print("Select and compute mean: {:.4f}s".format(elapsed_time, timer() - start))  # For debugging
         # final_estimates['soft0_select1'.format(self.n_neighbors)] = \
