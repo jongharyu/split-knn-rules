@@ -45,7 +45,7 @@ def run():
     n_trials = args.n_trials
     # ks = [1] + [2 ** logk + 1 for logk in range(1, np.ceil(np.log2(args.k_standard_max)).astype(int))]
     # base_k = [1, 3]  # for split methods
-    keys = ['standard_kNN_CV', 'split_1NN_CV']
+    keys = ['standard_kNN_CV', 'Msplit_1NN_CV']
     error_rates = {key: np.zeros(n_trials) for key in keys}
     elapsed_times = {key: np.zeros(n_trials) for key in keys}
 
@@ -63,19 +63,16 @@ def run():
                               n_jobs=-1 if args.parallel else None,
                               algorithm=args.algorithm)
         predictor.fit(X_train, y_train)
-        print('Running standard with k={} ({}/{}) using {}'.format(
-            n_neighbors, n + 1, n_trials,
-            predictor._fit_method), end=': '
-        )
+        print('\t{} (k={}): '.format(key, n_neighbors), end='')
         y_test_pred = predictor.predict(X_test)
         elapsed_times[key][n] = timer() - start
         error_rates[key][n] = compute_error_rate(y_test_pred, y_test)
 
-        print("\tError rate = {:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
+        print("\t{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
 
         # Split rules
-        key = 'split_1NN_CV'
+        key = 'Msplit_1NN_CV'
         start = timer()
         n_splits = 5 * n_neighbors
         # print("Grid search with 5-fold CV: M={}, kappa={} (Elpased time = {:.2f}s)".format(n_splits, select_ratio, timer() - start))
@@ -84,18 +81,14 @@ def run():
                                                    select_ratio=None,
                                                    algorithm=args.algorithm
                                                    ).fit(X_train, y_train)
-        print('Running split-{}NN rules with {} splits ({}/{}) using {}'.format(
-            n_neighbors, n_splits,
-            n + 1, n_trials,
-            regressor._fit_method), end=': ')
-        y_test_pred = regressor.predict(X_test, parallel=args.parallel)['soft1_select1_1NN']
+        print('\t{} (M={}): '.format(key, n_splits), end='')
+        y_test_pred = regressor.predict(X_test, parallel=args.parallel)
         elapsed_time = timer() - start
         # for key in y_test_pred:
         y_test_pred = (y_test_pred > .5) if dataset.classification else y_test_pred
         elapsed_times[key][n] = elapsed_time
         error_rates[key][n] = compute_error_rate(y_test_pred, y_test)
-        print("\tError rate ({}) = {:.4f} ({:.2f}s)".format(key, error_rates[key][n], elapsed_times[key][n]))
-        # print(key, error_rates[key])
+        print("\t\t{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
     # Store data (serialize)
     data = dict(keys=keys,
