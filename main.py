@@ -58,6 +58,8 @@ def run():
         start = timer()
         n_neighbors = GridSearchWithCrossValidationForKNeighborsClassifier(n_folds=5, n_repeat=1).grid_search(X_train, y_train)
         print("Grid search with 5-fold CV: k={} (Elpased time = {:.2f}s)".format(n_neighbors, timer() - start))
+
+        start = timer()
         Predictor = KNeighborsClassifier if dataset.classification else KNeighborsRegressor
         predictor = Predictor(n_neighbors=n_neighbors,
                               n_jobs=-1 if args.parallel else None,
