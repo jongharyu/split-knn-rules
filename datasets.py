@@ -25,7 +25,10 @@ class Dataset:
         raise NotImplementedError
 
     def train_test_split(self, test_size=0.4, seed=0):
-        return train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
+        X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
+        X_train = (X_train - X_train.mean(axis=0, keepdims=True)) / X_train.std(axis=0, keepdims=True)
+        X_test = (X_test - X_train.mean(axis=0, keepdims=True)) / X_train.std(axis=0, keepdims=True)
+        return X_train, X_test, y_train, y_test
 
 
 class MixtureOfTwoGaussians:
