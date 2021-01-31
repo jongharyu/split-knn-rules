@@ -93,8 +93,8 @@ def run():
             n_folds=args.n_folds, n_repeat=1, parallel=args.parallel
         ).grid_search(X_train, y_train)
         model_selection_time =  timer() - start
-        print("Grid search with {}-fold CV: k={} ({:.2f}s)".format(
-            args.n_folds, n_neighbors, model_selection_time)
+        print("Grid search with {}-fold CV: M={} ({:.2f}s)".format(
+            args.n_folds, n_splits, model_selection_time)
         )
 
         start = timer()
@@ -104,7 +104,7 @@ def run():
             select_ratio=None,
             algorithm=args.algorithm
             ).fit(X_train, y_train)
-        print('\t{} (M={}): '.format(key, n_splits), end='')
+        print('\t{} (M={}): '.format('Msplit_1NN', n_splits), end='')
         y_test_pred = regressor.predict(X_test, parallel=args.parallel)
         elapsed_time = timer() - start
         for key in y_test_pred:

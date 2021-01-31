@@ -42,7 +42,7 @@ class GridSearchWithCrossValidationForKNeighborsClassifier:
         # 1) coarse search: find best k in [1,2,4,8,16,...]
         k_set = []
         k_err = []
-        k = 1
+        k = 2
         while k < np.sqrt(X.shape[0]):
             k_set.append(k)
             k_err.append(self.cross_validate(X, y, k))
@@ -50,7 +50,7 @@ class GridSearchWithCrossValidationForKNeighborsClassifier:
         k_opt_rough = k_set[np.argmin(k_err)]
 
         # 2) fine search: find best k in [.5 * k_opt_rough - 10, 2 * k_opt_rough + 10]
-        k_search_start = (max(1, int(.5 * k_opt_rough) - 10) // 2) * 2 + 1
+        k_search_start = np.max([(max(1, int(.5 * k_opt_rough) - 10) // 2) * 2 + 1, 3])
         k_search_end = int(min(2 * k_opt_rough + 11, np.sqrt(X.shape[0])))
         for k in range(k_search_start, k_search_end, 2):
             if k not in k_set:
@@ -76,9 +76,9 @@ class GridSearchWithCrossValidationForSplitSelect1NN(GridSearchWithCrossValidati
                 X_train, X_valid = X[train_index], X[valid_index]
                 y_train, y_valid = y[train_index], y[valid_index]
 
-                regressor = SplitSelectKNeighborsRegressor(n_neighbors=1, n_splits=n_splits, select_ratio=select_ratio, verbose=False)
+                regressor = SplitSelectKNeighborsRegressor(n_neighbors=1, n_splits=n_splits, select_ratio=None, verbose=False)
                 regressor.fit(X_train, y_train)
-                y_valid_pred = regressor.predict(X_valid, parallel=self.parallel)['soft1_select1_1NN'] > .5
+                y_valid_pred = regressor.predict(X_valid, parallel=self.parallel)['split_select1_1NN'] > .5
                 errors.append(compute_error_rate(y_valid, y_valid_pred))
 
         return np.mean(errors)
