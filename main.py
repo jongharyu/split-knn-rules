@@ -121,7 +121,7 @@ def run():
             elapsed_times[key][n] = timer() - start
             error_rates[key][n] = compute_error_rate(y_test_pred, y_test)
 
-            print("\t{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
+            print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
 
         # Split rules
@@ -131,7 +131,7 @@ def run():
             n_folds=args.n_folds, n_repeat=1, parallel=args.parallel
         ).grid_search(X_train, y_train, max_k=X_train.shape[0]/25)
         model_selection_time =  timer() - start
-        print('\t{} (M={}; {}-fold CV {:.2f}s): '.format(
+        print('\t{}; {}-fold CV ({:.2f}s): '.format(
             'Msplit_1NN',
             n_splits_opt,
             args.n_folds,
@@ -155,7 +155,7 @@ def run():
             y_test_pred[key] = (y_test_pred[key] > .5) if dataset.classification else y_test_pred[key]
             error_rates[key][n] = compute_error_rate(y_test_pred[key], y_test)
             elapsed_times[key][n] = elapsed_time
-        print("\t\t{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
+        print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
     # Store data (serialize)
     data = dict(keys=keys,
