@@ -45,19 +45,19 @@ class GridSearchForKNeighborsClassifier:
 
         return np.mean(errors)
 
-    def grid_search(self, X, y, max_k=None, fine_search=False):
+    def grid_search(self, X, y, k_max=None, fine_search=False):
         # search for an optimal k and fit
-        if not max_k:
-            max_k = X.shape[0]
+        if not k_max:
+            k_max = X.shape[0]
 
         if self.verbose:
-            print("\t\tValidating (max={}): ".format(int(max_k)), end='')
+            print("\t\tValidating (max={}): ".format(int(k_max)), end='')
 
         # 1) coarse search: find best k in [3, 7, 15, 31,...]
         k_set = []
         k_err = []
         k = 3
-        while k < max_k:
+        while k < k_max:
             k_set.append(k)
             if self.verbose:
                 print(k, end=' ')

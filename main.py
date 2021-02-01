@@ -45,7 +45,7 @@ parser.add_argument('--dataset', type=str, default='MiniBooNE',
                              'WineQuality', 'YearPredictionMSD'])
 parser.add_argument('--main-path', type=str, default='.',
                     help='main path where datasets live and loggings are saved')
-parser.add_argument('--k-standard-max', type=int, default=1025)
+parser.add_argument('--k-max', type=int, default=1024)
 parser.add_argument('--n-folds', type=int, default=5)
 parser.add_argument('--temp', type=bool, default=False)
 parser.add_argument('--verbose', type=bool, default=True)
@@ -101,6 +101,9 @@ def run():
         if n == 0:
             print("Data size: train={}, test={}".format(X_train.shape[0], X_test.shape[0]))
 
+        # set maximum k
+        k_max = np.min([args.k_max, X_train.shape[0] / 25])
+
         print("Trial #{}/{}".format(n + 1, n_trials))
         # Standard k-NN rules
         for key in ['standard_1NN', 'standard_kNN']:
@@ -114,7 +117,7 @@ def run():
                         n_repeat=1,
                         max_valid_size=args.max_test_size,
                         verbose=args.verbose,
-                ).grid_search(X_train, y_train, max_k=np.sqrt(X_train.shape[0]))
+                ).grid_search(X_train, y_train, k_max=k_max)
                 model_selection_time = timer() - start
                 print('\t\t{}-fold CV ({:.2f}s)'.format(
                     args.n_folds,
@@ -143,7 +146,7 @@ def run():
                 max_valid_size=args.max_test_size,
                 parallel=args.parallel,
                 verbose=args.verbose,
-        ).grid_search(X_train, y_train, max_k=X_train.shape[0] / 25)
+        ).grid_search(X_train, y_train, k_max=k_max)
         model_selection_time = timer() - start
         print('\t\t{}-fold CV ({:.2f}s): '.format(
             args.n_folds,
