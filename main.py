@@ -151,7 +151,7 @@ def run():
             y_test_pred[key] = (y_test_pred[key] > .5) if dataset.classification else y_test_pred[key]
             error_rates[key][n] = compute_error_rate(y_test_pred[key], y_test)
             elapsed_times[key][n] = elapsed_time
-        print("\t\t{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
+        print("\t{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
     # Store data (serialize)
     data = dict(keys=keys,
