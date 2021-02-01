@@ -53,7 +53,7 @@ args = parser.parse_args()
 
 run_id = datetime.datetime.now().isoformat()
 experiment_dir = Path('{}/results/'.format(args.main_path))
-experiment_dir.mkdir(parents=True, exist_ok=True if args.temp else False)
+experiment_dir.mkdir(parents=True, exist_ok=True)
 run_path = str(experiment_dir)
 if args.temp:
     run_path = mkdtemp(prefix=run_id, dir=run_path)
