@@ -30,8 +30,9 @@ markers = ['o', 's', '*', 'v', '^', 'D', 'h', 'x', '+', '8', 'p', '<', '>', 'd',
 
 # Arguments
 parser = argparse.ArgumentParser(description='Split knn rules')
-parser.add_argument('--test-size', type=float, default=0.4, metavar='t',
+parser.add_argument('--test-size', type=float, default=0.05, metavar='t',
                     help='test split ratio')
+parser.add_argument('--max-test-size', type=int, default=1000)
 parser.add_argument('--n-trials', type=int, default=1,
                     help='number of different train/test splits')
 parser.add_argument('--algorithm', type=str, default='auto',
@@ -93,10 +94,14 @@ def run():
     )
 
     for n in range(n_trials):
-        print("Trial #{}/{}".format(n + 1, n_trials))
         # Split dataset at random
         X_train, X_test, y_train, y_test = dataset.train_test_split(test_size=args.test_size, seed=n)
+        # Truncate test set to limit time complexity of experiments
+        X_test, y_test = X_test[:args.max_test_size], y_test[:args.max_test_size]
+        if n == 0:
+            print("Data size: train={}, test={}".format(X_train.shape[0], X_test.shape[0]))
 
+        print("Trial #{}/{}".format(n + 1, n_trials))
         # Standard k-NN rules
         for key in ['standard_1NN', 'standard_kNN']:
             k_opt = 1
@@ -107,6 +112,7 @@ def run():
                     GridSearchForKNeighborsClassifier(
                         n_folds=args.n_folds,
                         n_repeat=1,
+                        max_valid_size=args.max_test_size,
                         verbose=args.verbose,
                 ).grid_search(X_train, y_train, max_k=np.sqrt(X_train.shape[0]))
                 model_selection_time = timer() - start
@@ -134,6 +140,7 @@ def run():
             GridSearchForSplitSelect1NN(
                 n_folds=args.n_folds,
                 n_repeat=1,
+                max_valid_size=args.max_test_size,
                 parallel=args.parallel,
                 verbose=args.verbose,
         ).grid_search(X_train, y_train, max_k=X_train.shape[0] / 25)

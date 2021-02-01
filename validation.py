@@ -15,10 +15,11 @@ def compute_error_rate(truth, prediction):
 
 class GridSearchForKNeighborsClassifier:
     # Reference: https://github.com/lirongx/SubNN/blob/master/SubNN.py
-    def __init__(self, n_folds=5, n_repeat=1, verbose=True):
+    def __init__(self, n_folds=5, n_repeat=1, verbose=True, max_valid_size=1000):
         self.n_folds = n_folds
         self.n_repeat = n_repeat
         self.verbose = verbose
+        self.max_valid_size = max_valid_size
 
     def compute_error(self, X_train, y_train, X_valid, y_valid, k):
         if k > len(y_train):
@@ -37,8 +38,8 @@ class GridSearchForKNeighborsClassifier:
         for repeat in range(self.n_repeat):
             skf = StratifiedKFold(n_splits=self.n_folds, shuffle=True)
             for train_index, valid_index in skf.split(X, y):
-                X_train, X_valid = X[train_index], X[valid_index]
-                y_train, y_valid = y[train_index], y[valid_index]
+                X_train, X_valid = X[train_index], X[valid_index[:self.max_valid_size]]
+                y_train, y_valid = y[train_index], y[valid_index[:self.max_valid_size]]
                 error = self.compute_error(X_train, y_train, X_valid, y_valid, k)
                 errors.append(error)
 
