@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.neighbors import KNeighborsClassifier
@@ -37,28 +38,35 @@ class GridSearchWithCrossValidationForKNeighborsClassifier:
 
         return np.mean(errors)
 
-    def grid_search(self, X, y):
+    def grid_search(self, X, y, max_k=None, fine_search=False):
         # search for an optimal k and fit
-        # 1) coarse search: find best k in [1,2,4,8,16,...]
+        if not max_k:
+            max_k = X.shape[0]
+
+        # 1) coarse search: find best k in [3,7,15,31,...]
         k_set = []
         k_err = []
-        k = 2
-        while k < np.sqrt(X.shape[0]):
+        k = 3
+        while k < max_k:
             k_set.append(k)
             k_err.append(self.cross_validate(X, y, k))
-            k = k * 2
+            k = 2 * (k + 1) - 1
         k_opt_rough = k_set[np.argmin(k_err)]
 
-        # 2) fine search: find best k in [.5 * k_opt_rough - 10, 2 * k_opt_rough + 10]
-        k_search_start = np.max([(max(1, int(.5 * k_opt_rough) - 10) // 2) * 2 + 1, 3])
-        k_search_end = int(min(2 * k_opt_rough + 11, np.sqrt(X.shape[0])))
-        for k in range(k_search_start, k_search_end, 2):
-            if k not in k_set:
-                k_set.append(k)
-                k_err.append(self.cross_validate(X, y, k))
+        if fine_search:
+            # 2) fine search: find best k in [.5 * k_opt_rough - 10, 2 * k_opt_rough + 10]
+            k_search_start = np.max([(max(1, int(.5 * k_opt_rough) - 10) // 2) * 2 + 1, 3])
+            k_search_end = int(min(2 * k_opt_rough + 11, np.sqrt(X.shape[0])))
+            for k in range(k_search_start, k_search_end, 2):
+                if k not in k_set:
+                    k_set.append(k)
+                    k_err.append(self.cross_validate(X, y, k))
+        k_set = np.array(k_set)
+        k_err = np.array(k_err)
         k_opt = k_set[np.argmin(k_err)]
-
-        return k_opt
+        indices = np.argsort(k_set)
+        profile = np.vstack([k_set[indices], k_err[indices]])  # (2, len(k_set))
+        return k_opt, profile
 
 
 class GridSearchWithCrossValidationForSplitSelect1NN(GridSearchWithCrossValidationForKNeighborsClassifier):
