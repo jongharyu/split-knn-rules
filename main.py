@@ -52,7 +52,7 @@ args = parser.parse_args()
 
 
 run_id = datetime.datetime.now().isoformat()
-experiment_dir = Path('{}/results/'.format(args.main_path))
+experiment_dir = Path('{}/results/{}/'.format(args.main_path, args.dataset))
 experiment_dir.mkdir(parents=True, exist_ok=True)
 run_path = str(experiment_dir)
 if args.temp:
@@ -107,7 +107,7 @@ def run():
                     n_folds=args.n_folds, n_repeat=1
                 ).grid_search(X_train, y_train, max_k=np.sqrt(X_train.shape[0]))
                 model_selection_time = timer() - start
-                print('\t{} (k={}; {}-fold CV {:.2f}s): '.format(key, k_opt, args.n_folds, model_selection_time))
+                print('\t{} ({}-fold CV; {:.2f}s)'.format(key, k_opt, args.n_folds, model_selection_time))
             best_params[key] = k_opt
             model_selection_times[key] = model_selection_time
             start = timer()
@@ -151,7 +151,7 @@ def run():
             y_test_pred[key] = (y_test_pred[key] > .5) if dataset.classification else y_test_pred[key]
             error_rates[key][n] = compute_error_rate(y_test_pred[key], y_test)
             elapsed_times[key][n] = elapsed_time
-        print("\t{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
+        print("\t\t{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
     # Store data (serialize)
     data = dict(keys=keys,
@@ -181,10 +181,11 @@ def run():
                          (errs.mean(axis=0) + errs.std(axis=0)),
                          linewidth=0.1,
                          alpha=0.3,
+                         marker=markers[i],
                          color=colors[i])
         plt.xscale('log', nonposx='clip')
-        plt.title('{} ({} runs)'.format(args.dataset, n_trials))
-        plt.legend()
+    plt.title('{} ({} runs)'.format(args.dataset, n_trials))
+    plt.legend()
     plt.savefig('{}/validation_profile.pdf'.format(run_path))
 
 
