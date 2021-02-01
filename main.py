@@ -110,8 +110,7 @@ def run():
                         verbose=args.verbose,
                 ).grid_search(X_train, y_train, max_k=np.sqrt(X_train.shape[0]))
                 model_selection_time = timer() - start
-                print('\t{}; {}-fold CV ({:.2f}s)'.format(
-                    key,
+                print('\t\t{}-fold CV ({:.2f}s)'.format(
                     args.n_folds,
                     model_selection_time))
             best_params[key] = k_opt
@@ -139,8 +138,7 @@ def run():
                 verbose=args.verbose,
         ).grid_search(X_train, y_train, max_k=X_train.shape[0] / 25)
         model_selection_time = timer() - start
-        print('\t{}; {}-fold CV ({:.2f}s): '.format(
-            'Msplit_1NN',
+        print('\t\t{}-fold CV ({:.2f}s): '.format(
             args.n_folds,
             model_selection_time))
 

@@ -49,12 +49,17 @@ class GridSearchForKNeighborsClassifier:
         if not max_k:
             max_k = X.shape[0]
 
+        if self.verbose:
+            print("\t\tValidating (max={}): ".format(int(max_k)), end='')
+
         # 1) coarse search: find best k in [3, 7, 15, 31,...]
         k_set = []
         k_err = []
         k = 3
         while k < max_k:
             k_set.append(k)
+            if self.verbose:
+                print(k, end=' ')
             err = self.cross_validate(X, y, k)
             k_err.append(err)
             k = 2 * (k + 1) - 1
@@ -67,6 +72,8 @@ class GridSearchForKNeighborsClassifier:
             for k in range(k_search_start, k_search_end, 2):
                 if k not in k_set:
                     k_set.append(k)
+                    if self.verbose:
+                        print(k, end=' ')
                     err = self.cross_validate(X, y, k)
                     k_err.append(err)
 
@@ -75,7 +82,8 @@ class GridSearchForKNeighborsClassifier:
         k_opt = k_set[np.argmin(k_err)]
         indices = np.argsort(k_set)
         profile = np.vstack([k_set[indices], k_err[indices]])  # (2, len(k_set))
-
+        if self.verbose:
+            print()
         return k_opt, profile
 
 
