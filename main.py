@@ -21,7 +21,7 @@ import datasets
 from regressor import SplitSelectKNeighborsRegressor
 from validation import compute_error_rate
 from utils import str2bool, Logger
-from validation import GridSearchWithCrossValidationForKNeighborsClassifier, GridSearchWithCrossValidationForSplitSelect1NN
+from validation import GridSearchForKNeighborsClassifier, GridSearchForSplitSelect1NN
 
 
 # mpl.style.use( 'ggplot' )
@@ -103,7 +103,7 @@ def run():
             if key == 'standard_kNN':
                 start = timer()
                 k_opt, validation_profiles[key][n] = \
-                    GridSearchWithCrossValidationForKNeighborsClassifier(
+                    GridSearchForKNeighborsClassifier(
                     n_folds=args.n_folds, n_repeat=1
                 ).grid_search(X_train, y_train, max_k=np.sqrt(X_train.shape[0]))
                 model_selection_time = timer() - start
@@ -127,11 +127,15 @@ def run():
         # Split rules
         start = timer()
         n_splits_opt, validation_profiles['Msplit_1NN'][n] = \
-            GridSearchWithCrossValidationForSplitSelect1NN(
+            GridSearchForSplitSelect1NN(
             n_folds=args.n_folds, n_repeat=1, parallel=args.parallel
         ).grid_search(X_train, y_train, max_k=X_train.shape[0]/25)
         model_selection_time =  timer() - start
-        print('\t{} (k={}; {}-fold CV {:.2f}s): '.format(key, n_splits_opt, args.n_folds, model_selection_time))
+        print('\t{} (M={}; {}-fold CV {:.2f}s): '.format(
+            'Msplit_1NN',
+            n_splits_opt,
+            args.n_folds,
+            model_selection_time))
 
         start = timer()
         regressor = SplitSelectKNeighborsRegressor(
@@ -174,14 +178,17 @@ def run():
         errs = np.zeros((n_trials, len(param_set)))
         for n in range(n_trials):
             errs[n] = validation_profiles[key][n][1]
-        plt.plot(param_set, errs.mean(axis=0),
-                 linewidth=1, label=key, color=colors[i])
+        plt.plot(param_set,
+                 errs.mean(axis=0),
+                 linewidth=1,
+                 label=key,
+                 color=colors[i],
+                 marker=markers[i])
         plt.fill_between(param_set,
                          (errs.mean(axis=0) - errs.std(axis=0)),
                          (errs.mean(axis=0) + errs.std(axis=0)),
                          linewidth=0.1,
                          alpha=0.3,
-                         marker=markers[i],
                          color=colors[i])
         plt.xscale('log', nonposx='clip')
     plt.title('{} ({} runs)'.format(args.dataset, n_trials))
