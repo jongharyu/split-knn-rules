@@ -106,8 +106,7 @@ def run():
                     n_folds=args.n_folds, n_repeat=1
                 ).grid_search(X_train, y_train, max_k=np.sqrt(X_train.shape[0]))
                 model_selection_time = timer() - start
-                print("Grid search with {}-fold CV: k={} ({:.2f}s)".format(
-                    args.n_folds, k_opt, model_selection_time))
+                print('\t{} (k={}; {}-fold CV {:.2f}s): '.format(key, k_opt, args.n_folds, model_selection_time))
             best_params[key] = k_opt
             model_selection_times[key] = model_selection_time
             start = timer()
@@ -131,10 +130,7 @@ def run():
             n_folds=args.n_folds, n_repeat=1, parallel=args.parallel
         ).grid_search(X_train, y_train, max_k=X_train.shape[0]/25)
         model_selection_time =  timer() - start
-
-        print("Grid search with {}-fold CV: M={} ({:.2f}s)".format(
-            args.n_folds, n_splits_opt, model_selection_time)
-        )
+        print('\t{} (k={}; {}-fold CV {:.2f}s): '.format(key, n_splits_opt, args.n_folds, model_selection_time))
 
         start = timer()
         regressor = SplitSelectKNeighborsRegressor(
