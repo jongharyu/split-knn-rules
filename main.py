@@ -36,7 +36,8 @@ parser.add_argument('--max-test-size', type=int, default=1000)
 parser.add_argument('--n-trials', type=int, default=1,
                     help='number of different train/test splits')
 parser.add_argument('--algorithm', type=str, default='auto',
-                    help='knn search algorithm (default: "auto")')
+                    help='knn search algorithm (default: "auto")',
+                    choices=['auto', 'ball_tree', 'kd_tree', 'brute'])
 parser.add_argument('--parallel', type=str2bool, default=False, metavar='P',
                     help='use multiprocessors')
 parser.add_argument('--dataset', type=str, default='MiniBooNE',

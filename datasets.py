@@ -28,6 +28,7 @@ class Dataset:
         X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
         mu_train = X_train.mean(axis=0, keepdims=True)
         sigma_train = X_train.std(axis=0, keepdims=True)
+        sigma_train[sigma_train == 0] = 1
         X_train = (X_train - mu_train) / sigma_train
         X_test = (X_test - mu_train) / sigma_train
         return X_train, X_test, y_train, y_test
