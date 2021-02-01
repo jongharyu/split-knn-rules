@@ -87,8 +87,8 @@ def run():
     best_params = defaultdict(partial(np.zeros, n_trials))
 
     validation_profiles = dict(
-        standard_kNN=dict(None for _ in range(n_trials)),
-        Msplit_1NN=dict(None for _ in range(n_trials)),
+        standard_kNN={n: None for n in range(n_trials)},
+        Msplit_1NN={n: None for n in range(n_trials)},
     )
 
     for n in range(n_trials):
