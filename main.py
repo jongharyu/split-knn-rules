@@ -100,14 +100,16 @@ def run():
         # Standard k-NN rules
         for key in ['standard_1NN', 'standard_kNN']:
             k_opt = 1
-            model_selection_time = 0
+            model_selection_time = 0.
             if key == 'standard_kNN':
-                k_opt, validation_profiles[key][n], model_selection_time = \
+                start = timer()
+                k_opt, validation_profiles[key][n] = \
                     GridSearchForKNeighborsClassifier(
                         n_folds=args.n_folds,
                         n_repeat=1,
                         verbose=args.verbose,
                 ).grid_search(X_train, y_train, max_k=np.sqrt(X_train.shape[0]))
+                model_selection_time = timer() - start
                 print('\t{}; {}-fold CV ({:.2f}s)'.format(
                     key,
                     args.n_folds,
@@ -129,13 +131,14 @@ def run():
 
 
         # Split rules
-        n_splits_opt, validation_profiles['Msplit_1NN'][n], model_selection_time = \
+        n_splits_opt, validation_profiles['Msplit_1NN'][n] = \
             GridSearchForSplitSelect1NN(
                 n_folds=args.n_folds,
                 n_repeat=1,
                 parallel=args.parallel,
                 verbose=args.verbose,
         ).grid_search(X_train, y_train, max_k=X_train.shape[0] / 25)
+        model_selection_time = timer() - start
         print('\t{}; {}-fold CV ({:.2f}s): '.format(
             'Msplit_1NN',
             args.n_folds,

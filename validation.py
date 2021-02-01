@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.neighbors import KNeighborsClassifier
-from timeit import default_timer as timer
 
 from regressor import SplitSelectKNeighborsRegressor
 
@@ -34,29 +33,19 @@ class GridSearchForKNeighborsClassifier:
 
     def cross_validate(self, X, y, k):
         # calculate error rate of a given k through cross validation
-        total_elapsed_time = 0.
         errors = []
         for repeat in range(self.n_repeat):
             skf = StratifiedKFold(n_splits=self.n_folds, shuffle=True)
-            if self.verbose:
-                print('\t\tTest {}: '.format(k), end='')
             for train_index, valid_index in skf.split(X, y):
                 X_train, X_valid = X[train_index], X[valid_index]
                 y_train, y_valid = y[train_index], y[valid_index]
-                start = timer()
                 error = self.compute_error(X_train, y_train, X_valid, y_valid, k)
-                elapsed_time = timer() - start
-                total_elapsed_time += elapsed_time
-                if self.verbose:
-                    print("{:.2f}s;".format(elapsed_time), end=' ')
                 errors.append(error)
-            print()
 
-        return np.mean(errors), total_elapsed_time
+        return np.mean(errors)
 
     def grid_search(self, X, y, max_k=None, fine_search=False):
         # search for an optimal k and fit
-        total_elapsed_time = 0.
         if not max_k:
             max_k = X.shape[0]
 
@@ -66,9 +55,8 @@ class GridSearchForKNeighborsClassifier:
         k = 3
         while k < max_k:
             k_set.append(k)
-            err, time = self.cross_validate(X, y, k)
+            err = self.cross_validate(X, y, k)
             k_err.append(err)
-            total_elapsed_time += time
             k = 2 * (k + 1) - 1
         k_opt_rough = k_set[np.argmin(k_err)]
 
@@ -79,9 +67,8 @@ class GridSearchForKNeighborsClassifier:
             for k in range(k_search_start, k_search_end, 2):
                 if k not in k_set:
                     k_set.append(k)
-                    err, time = self.cross_validate(X, y, k)
+                    err = self.cross_validate(X, y, k)
                     k_err.append(err)
-                    total_elapsed_time += time
 
         k_set = np.array(k_set)
         k_err = np.array(k_err)
@@ -89,7 +76,7 @@ class GridSearchForKNeighborsClassifier:
         indices = np.argsort(k_set)
         profile = np.vstack([k_set[indices], k_err[indices]])  # (2, len(k_set))
 
-        return k_opt, profile, total_elapsed_time
+        return k_opt, profile
 
 
 class GridSearchForSplitSelect1NN(GridSearchForKNeighborsClassifier):
