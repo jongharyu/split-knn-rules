@@ -92,6 +92,7 @@ def run():
     )
 
     for n in range(n_trials):
+        print("Trial #{}/{}".format(n + 1, n_trials))
         # Split dataset at random
         X_train, X_test, y_train, y_test = dataset.train_test_split(test_size=args.test_size, seed=n)
 
