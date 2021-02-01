@@ -178,7 +178,8 @@ def run():
                 elapsed_times=elapsed_times, error_rates=error_rates,
                 model_selection_times=model_selection_times,
                 validation_profiles=validation_profiles,
-                cpu_info=cpuinfo.get_cpu_info())
+                cpu_info=cpuinfo.get_cpu_info(),
+                args=args)
     filename = '{}/{}_test{}_{}tr_{}cores_alg{}.pickle'.format(
         run_path,
         dataset.name, args.test_size, args.n_trials, cpu_count(),

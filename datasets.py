@@ -164,7 +164,7 @@ class CREDIT(Dataset):
 
 class GISETTE(Dataset):
     # Reference
-    # [1] https://github.com/aashsach/random-forest/blob/master/random_forest_classifier.ipynb
+    # [1] https://github.com/aashsach/random-forest/
 
     def __init__(self, root='.'):
         super().__init__()
@@ -198,6 +198,7 @@ class GISETTE(Dataset):
                 classes.append((row.strip()).split(" "))
         y_valid = np.array(classes).astype(int)
         y_valid = y_valid[:, 0]
+        y_valid[y_valid == -1] = 0  # somehow negative label in valid set is -1
 
         X = np.concatenate([X_train, X_valid], axis=0)
         y = np.concatenate([y_train, y_valid], axis=0)
