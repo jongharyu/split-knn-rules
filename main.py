@@ -195,7 +195,7 @@ def run():
                          linewidth=0.1,
                          alpha=0.3,
                          color=colors[i])
-        plt.xscale('log', nonpositive='clip')
+        plt.xscale('log', nonposx='clip')
     plt.title('{} ({} runs)'.format(args.dataset, n_trials))
     plt.legend()
     plt.savefig('{}/validation_profile.pdf'.format(run_path))
