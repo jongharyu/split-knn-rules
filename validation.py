@@ -25,7 +25,7 @@ class GridSearchForKNeighborsClassifier:
             k = len(y_train)
         classifier = KNeighborsClassifier(
             n_neighbors=k,
-            # n_jobs=-1,
+            n_jobs=-1,
         ).fit(X_train, y_train)
         y_pred = classifier.predict(X_valid)
         error = compute_error_rate(y_valid, y_pred)
