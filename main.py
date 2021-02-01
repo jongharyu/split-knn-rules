@@ -45,7 +45,7 @@ parser.add_argument('--dataset', type=str, default='MiniBooNE',
 parser.add_argument('--main-path', type=str, default='.',
                     help='main path where datasets live and loggings are saved')
 parser.add_argument('--k-standard-max', type=int, default=1025)
-parser.add_argument('--n-folds', type=int, default=3)
+parser.add_argument('--n-folds', type=int, default=5)
 parser.add_argument('--temp', type=bool, default=False)
 parser.add_argument('--verbose', type=bool, default=True)
 
