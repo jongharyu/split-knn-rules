@@ -1,7 +1,7 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.neighbors import KNeighborsClassifier
+from timeit import default_timer as timer
 
 from regressor import SplitSelectKNeighborsRegressor
 
@@ -16,9 +16,10 @@ def compute_error_rate(truth, prediction):
 
 class GridSearchForKNeighborsClassifier:
     # Reference: https://github.com/lirongx/SubNN/blob/master/SubNN.py
-    def __init__(self, n_folds=5, n_repeat=1):
+    def __init__(self, n_folds=5, n_repeat=1, verbose=True):
         self.n_folds = n_folds
         self.n_repeat = n_repeat
+        self.verbose = verbose
 
     def compute_error(self, X_train, y_train, X_valid, y_valid, k):
         if k > len(y_train):
@@ -36,13 +37,17 @@ class GridSearchForKNeighborsClassifier:
         errors = []
         for repeat in range(self.n_repeat):
             skf = StratifiedKFold(n_splits=self.n_folds, shuffle=True)
-
+            if self.verbose:
+                print('\t\tTest {}: '.format(k), end='')
             for train_index, valid_index in skf.split(X, y):
                 X_train, X_valid = X[train_index], X[valid_index]
                 y_train, y_valid = y[train_index], y[valid_index]
-
+                start = timer()
                 error = self.compute_error(X_train, y_train, X_valid, y_valid, k)
+                if self.verbose:
+                    print("{:.2f}s;".format(timer() - start), end=' ')
                 errors.append(error)
+            print()
 
         return np.mean(errors)
 
