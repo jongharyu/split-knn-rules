@@ -306,23 +306,23 @@ class WineQuality(Dataset):
         return X, y
 
 
-class CASP(Dataset):
+class Superconductivity(Dataset):
     """
     References
     ----------
-    [1] https://archive.ics.uci.edu/ml/datasets/YearPredictionMSD
+    [1] https://archive.ics.uci.edu/ml/datasets/Superconductivity+Data
     """
     def __init__(self, root='.'):
         super().__init__()
         self.X, self.y = self.load_and_preprocess(root)
         self.classification = False
-        self.name = 'CASP'
+        self.name = 'Superconductivity'
 
     @staticmethod
     def load_and_preprocess(root):
-        filename = '{}/data/CASP/CASP.csv'.format(root)
+        filename = '{}/data/superconduct/train.csv'.format(root)
         df = pd.read_csv(filename)
-        X, y = np.array(df[df.columns[1:]]), np.array(df[df.columns[0]])
+        X, y = np.array(df[df.columns[:-1]]), np.array(df[df.columns[-1]])
 
         return X, y
 
