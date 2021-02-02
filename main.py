@@ -3,12 +3,12 @@
 
 import argparse
 import datetime
+import multiprocessing as mp
 import numpy as np
 import pickle
 import sys
 from collections import defaultdict
 from functools import partial
-from multiprocessing import cpu_count
 from pathlib import Path
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from tempfile import mkdtemp
@@ -69,18 +69,12 @@ run_path = str(experiment_dir)
 if args.temp:
     run_path = mkdtemp(prefix=run_id, dir=run_path)
 sys.stdout = Logger('{}/run.log'.format(run_path))
-print('Expt: {}'.format(run_path))
-print('RunID: {}'.format(run_id))
-
 
 # select datasets
 dataset = getattr(datasets, args.dataset)(root=args.main_path)
 
 
-def run():
-    if args.parallel:
-        print("Parallel processing...")
-
+def run(pool=None):
     n_trials = args.n_trials
     keys = ['standard_1NN',
             'standard_kNN',
@@ -154,6 +148,7 @@ def run():
             verbose=args.verbose,
             classification=dataset.classification,
             onehot_encoder=dataset.onehot_encoder,
+            pool=pool,
         ).grid_search(
             X_train,
             y_train,
@@ -174,6 +169,7 @@ def run():
             verbose=False,
             classification=dataset.classification,
             onehot_encoder=dataset.onehot_encoder,
+            pool=pool,
             ).fit(X_train, y_train)
 
         print('\t{} (M={}, kappa={:.2f}): '.format('Msplit_1NN', n_splits_opt, select_ratio_opt), end='')
@@ -195,7 +191,7 @@ def run():
                 args=args)
     filename = '{}/{}_test{}_{}tr_{}cores_alg{}.pickle'.format(
         run_path,
-        dataset.name, args.test_size, args.n_trials, cpu_count(),
+        dataset.name, args.test_size, args.n_trials, mp.cpu_count(),
         args.algorithm,
     )
     with open(filename, 'wb') as handle:
@@ -254,4 +250,13 @@ def run():
         plt.savefig('{}/validation_profile_select_ratio.pdf'.format(run_path))
 
 if __name__ == '__main__':
-    run()
+    print('Expt: {}'.format(run_path))
+    print('RunID: {}'.format(run_id))
+
+    if args.parallel:
+        print("Parallel processing...")
+        mp.set_start_method("spawn")
+        with mp.get_context("spawn").Pool() as pool:
+            run(pool=pool)
+    else:
+        run()

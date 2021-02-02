@@ -99,11 +99,12 @@ class GridSearchForKNeighborsEstimator:
 
 
 class GridSearchForSplitSelect1NeighborEstimator(GridSearchForKNeighborsEstimator):
-    def __init__(self, parallel=False, classification=True, onehot_encoder=None, **kwargs):
+    def __init__(self, parallel=False, classification=True, onehot_encoder=None, pool=None, **kwargs):
         super().__init__(**kwargs)
         self.parallel = parallel
         self.classification = classification
         self.onehot_encoder = onehot_encoder
+        self.pool = pool
 
     def compute_error(self, X_train, y_train, X_valid, y_valid, k, select_ratio=None):
         estimator = SplitSelectKNeighborsRegressor(
@@ -112,7 +113,9 @@ class GridSearchForSplitSelect1NeighborEstimator(GridSearchForKNeighborsEstimato
             select_ratio=select_ratio,
             verbose=False,
             classification=self.classification,
-            onehot_encoder=self.onehot_encoder).fit(X_train, y_train)
+            onehot_encoder=self.onehot_encoder,
+            pool=self.pool,
+        ).fit(X_train, y_train)
         y_pred = estimator.predict(X_valid, parallel=self.parallel)['split_select1_1NN']
         error = compute_error(y_valid, y_pred, self.classification)
         return error

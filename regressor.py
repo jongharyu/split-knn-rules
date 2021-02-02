@@ -1,11 +1,10 @@
-import multiprocessing as mp
+from os import getpid
 from timeit import default_timer as timer
 
 import numpy as np
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neighbors._base import _get_weights
 from sklearn.utils import check_array
-
 
 class ExtendedKNeighborsRegressor(KNeighborsRegressor):
     """
@@ -74,6 +73,7 @@ class SplitKNeighbors:
                  verbose=True,
                  onehot_encoder=None,
                  classification=False,
+                 pool=None,
                  **kwargs, ):
         # algorithm: one of {'auto', 'ball_tree', 'kd_tree', 'brute'}
         self.n_neighbors = n_neighbors
@@ -100,6 +100,7 @@ class SplitKNeighbors:
         self.onehot_encoder = onehot_encoder  # in case of multilabel classification
         self.verbose =verbose
         self.target_dim = None
+        self.pool = pool
 
     @property
     def multilabel_classification(self):
@@ -147,8 +148,7 @@ class SplitKNeighbors:
             for m, model in enumerate(self.local_models):
                 local_estimates[m], knn_distances[m] = model.predict(X)  # (n_queries,)
         else:  # parallel processing
-            with mp.Pool() as pool:
-                local_returns = pool.map(predict, zip(self.local_models, [X] * self.n_splits))
+            local_returns = self.pool.map(predict, zip(self.local_models, [X] * self.n_splits))
             local_estimates, knn_distances = [np.array(l) for l in list(zip(*local_returns))]
         elapsed_time = timer() - start
         if self.verbose:
