@@ -62,19 +62,27 @@ parser.add_argument('--verbose', type=bool, default=True)
 args = parser.parse_args()
 
 
-run_id = datetime.datetime.now().isoformat()
+run_id = datetime.datetime.now().isoformat(timespec='seconds')
 experiment_dir = Path('{}/results/{}/'.format(args.main_path, args.dataset))
 experiment_dir.mkdir(parents=True, exist_ok=True)
 run_path = str(experiment_dir)
 if args.temp:
     run_path = mkdtemp(prefix=run_id, dir=run_path)
+else:
+    run_path = '/'.join([run_path, run_id])
 sys.stdout = Logger('{}/run.log'.format(run_path))
 
 # select datasets
 dataset = getattr(datasets, args.dataset)(root=args.main_path)
 
+if __name__ == '__main__':
+    mp.set_start_method("spawn")
+    if args.parallel:
+        print("Parallel processing...")
 
-def run(pool=None):
+    print('Expt: {}'.format(run_path))
+    print('RunID: {}'.format(run_id))
+
     n_trials = args.n_trials
     keys = ['standard_1NN',
             'standard_kNN',
@@ -116,7 +124,7 @@ def run(pool=None):
                         n_repeat=1,
                         max_valid_size=args.max_test_size,
                         verbose=args.verbose,
-                ).grid_search(X_train, y_train, k_max=k_max)
+                    ).grid_search(X_train, y_train, k_max=k_max)
                 model_selection_time = timer() - start
                 print('\t\t{}-fold CV ({:.2f}s)'.format(
                     args.n_folds,
@@ -137,50 +145,52 @@ def run(pool=None):
             print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
         # Split rules
-        validation_profiles['Msplit_1NN'][n] = dict(n_splits=None, select_ratio=None)
-        n_splits_opt, validation_profiles['Msplit_1NN'][n]['n_splits'], \
-        select_ratio_opt, validation_profiles['Msplit_1NN'][n]['select_ratio'] \
-            = GridSearchForSplitSelect1NeighborEstimator(
-            n_folds=args.n_folds,
-            n_repeat=1,
-            max_valid_size=args.max_test_size,
-            parallel=args.parallel,
-            verbose=args.verbose,
-            classification=dataset.classification,
-            onehot_encoder=dataset.onehot_encoder,
-            pool=pool,
-        ).grid_search(
-            X_train,
-            y_train,
-            k_max=k_max,
-            search_select_ratio=True if dataset.onehot_encoder or args.search_select_ratio else False,
-        )
-        model_selection_time = timer() - start
-        print('\t\t{}-fold CV ({:.2f}s)'.format(
-            args.n_folds,
-            model_selection_time))
+        with mp.get_context("spawn").Pool() as pool:
+            validation_profiles['Msplit_1NN'][n] = dict(n_splits=None, select_ratio=None)
+            n_splits_opt, validation_profiles['Msplit_1NN'][n]['n_splits'], \
+            select_ratio_opt, validation_profiles['Msplit_1NN'][n]['select_ratio'] \
+                = GridSearchForSplitSelect1NeighborEstimator(
+                n_folds=args.n_folds,
+                n_repeat=1,
+                max_valid_size=args.max_test_size,
+                parallel=args.parallel,
+                verbose=args.verbose,
+                classification=dataset.classification,
+                onehot_encoder=dataset.onehot_encoder,
+                pool=pool,
+            ).grid_search(
+                X_train,
+                y_train,
+                k_max=k_max,
+                search_select_ratio=True if dataset.onehot_encoder or args.search_select_ratio else False,
+            )
+            model_selection_time = timer() - start
+            print('\t\t{}-fold CV ({:.2f}s)'.format(
+                args.n_folds,
+                model_selection_time))
 
-        start = timer()
-        estimator = SplitSelectKNeighborsRegressor(
-            n_neighbors=1,
-            n_splits=n_splits_opt,
-            select_ratio=select_ratio_opt,
-            algorithm=args.algorithm,
-            verbose=False,
-            classification=dataset.classification,
-            onehot_encoder=dataset.onehot_encoder,
-            pool=pool,
+            start = timer()
+            estimator = SplitSelectKNeighborsRegressor(
+                n_neighbors=1,
+                n_splits=n_splits_opt,
+                select_ratio=select_ratio_opt,
+                algorithm=args.algorithm,
+                verbose=False,
+                classification=dataset.classification,
+                onehot_encoder=dataset.onehot_encoder,
+                pool=pool,
             ).fit(X_train, y_train)
 
-        print('\t{} (M={}, kappa={:.2f}): '.format('Msplit_1NN', n_splits_opt, select_ratio_opt if select_ratio_opt else -1), end='')
-        y_test_pred = estimator.predict(X_test, parallel=args.parallel)
-        elapsed_time = timer() - start
-        for key in y_test_pred:
-            model_selection_times[key][n] = model_selection_time
-            best_params[key][n] = n_splits_opt
-            error_rates[key][n] = compute_error(y_test_pred[key], y_test, dataset.classification)
-            elapsed_times[key][n] = elapsed_time
-        print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
+            print('\t{} (M={}, kappa={:.2f}): '.format('Msplit_1NN', n_splits_opt,
+                                                       select_ratio_opt if select_ratio_opt else -1), end='')
+            y_test_pred = estimator.predict(X_test, parallel=args.parallel)
+            elapsed_time = timer() - start
+            for key in y_test_pred:
+                model_selection_times[key][n] = model_selection_time
+                best_params[key][n] = n_splits_opt
+                error_rates[key][n] = compute_error(y_test_pred[key], y_test, dataset.classification)
+                elapsed_times[key][n] = elapsed_time
+            print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
     # Store data (serialize)
     data = dict(keys=keys,
@@ -248,15 +258,3 @@ def run(pool=None):
         plt.title('{} ({} runs)'.format(args.dataset, n_trials))
         plt.legend()
         plt.savefig('{}/validation_profile_select_ratio.pdf'.format(run_path))
-
-if __name__ == '__main__':
-    print('Expt: {}'.format(run_path))
-    print('RunID: {}'.format(run_id))
-
-    if args.parallel:
-        print("Parallel processing...")
-        mp.set_start_method("spawn")
-        with mp.get_context("spawn").Pool() as pool:
-            run(pool=pool)
-    else:
-        run()
