@@ -295,16 +295,16 @@ class SplitKNeighborDensity(SplitKNeighbors):
         # Global aggregation
         # Note that knn_distances.shape = (n_samples, n_queries, n_k)
         start = timer()
-        selected_indices = np.argpartition(knn_distances, self.n_selected, axis=0)[:self.n_selected, :]  # (n_selected, n_queries); takes O(n_splits)
+        selected_indices = np.argpartition(knn_distances, self.n_select, axis=0)[:self.n_select, :]  # (n_selected, n_queries); takes O(n_splits)
         print("\tFind L distances: {:.4f}s".format(timer() - start))
 
         selected_log_volumes = local_log_volumes[
             selected_indices,
-            np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_selected, axis=0)
-        ]  # (self.n_selected, n_queries, n_k)
+            np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_select, axis=0)
+        ]  # (self.n_select, n_queries, n_k)
 
         final_estimates = dict()  # each entry has shape (n_k, n_queries)
-        final_estimates['agg_selective1'] = np.log(k * self.n_selected - 1) - logsumexp(selected_log_volumes, axis=0)
+        final_estimates['agg_selective1'] = np.log(k * self.n_select - 1) - logsumexp(selected_log_volumes, axis=0)
         final_estimates['mean_selective1'] = ((np.log(k - 1) - selected_log_volumes).mean(0))
         final_estimates['agg_selective0'] = np.log(k * self.n_splits - 1) - logsumexp(local_log_volumes, axis=0)
         final_estimates['mean_selective0'] = ((np.log(k - 1) - local_log_volumes).mean(0))

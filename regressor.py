@@ -7,15 +7,17 @@ from sklearn.neighbors._base import _get_weights
 from sklearn.utils import check_array
 
 
-class KNeighborsRegressorWithDistance(KNeighborsRegressor):
+class ExtendedKNeighborsRegressor(KNeighborsRegressor):
     """
     A modified version of the scikit implementation of k-NN regression algorithm.
-    It is modified so that it returns k-NN distances along with the regression estimates.
+    It is modified so that
+        1) it returns k-NN distances along with the regression estimates and
+        2) it support multidimensional regression.
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def predict(self, X, k=None):
+    def predict(self, X):
         """Predict the target for the provided data
 
         Parameters
@@ -41,8 +43,14 @@ class KNeighborsRegressorWithDistance(KNeighborsRegressor):
             _y = _y.reshape((-1, 1))
 
         if weights is None:
-            y_pred = np.mean(_y[neigh_ind], axis=1)
+            # y_pred = np.mean(_y[neigh_ind], axis=1)  # modified as below
+            # in case of multilabel classification / multidimensional regression
+            if hasattr(self._y, 'toarray'):
+                y_pred = self._y[neigh_ind.reshape((-1,))].toarray().reshape((*neigh_ind.shape, -1)).mean(axis=1)
+            else:
+                y_pred = self._y[neigh_ind.reshape((-1,))].reshape((*neigh_ind.shape, -1)).mean(axis=1)
         else:
+            # TODO: code below may not work for multidimensional target
             y_pred = np.empty((X.shape[0], _y.shape[1]), dtype=np.float64)
             denom = np.sum(weights, axis=1)
 
@@ -64,6 +72,8 @@ class SplitKNeighbors:
                  n_select=None,
                  select_ratio=None,
                  verbose=True,
+                 onehot_encoder=None,
+                 classification=False,
                  **kwargs, ):
         # algorithm: one of {'auto', 'ball_tree', 'kd_tree', 'brute'}
         self.n_neighbors = n_neighbors
@@ -86,10 +96,37 @@ class SplitKNeighbors:
         # If n_select is specified, n_splits is ignored
         self.n_select = n_select
 
+        self.is_classifier = classification
+        self.onehot_encoder = onehot_encoder  # in case of multilabel classification
         self.verbose =verbose
+        self.target_dim = None
+
+    @property
+    def multilabel_classification(self):
+        return self.onehot_encoder
+
+    @property
+    def n_classes(self):
+        if not self.is_classifier:
+            return -1
+        else:
+            if not self.multilabel_classification:
+                return 2
+            else:
+                return self.onehot_encoder.categories_[0].size
 
     def fit(self, *data_train):
         # TODO: check if classifier.predict_proba is equivalent to regressor.predict for default cases
+        data_train = list(data_train)
+        if self.multilabel_classification:
+            data_train[1] = self.onehot_encoder.transform(data_train[1].reshape((-1, 1))).toarray()
+            self.target_dim = data_train[1].shape[1]
+        elif len(data_train[1].shape) == 1:
+            self.target_dim = 1
+        else:
+            # multidimensional regression
+            self.target_dim = data_train[1].shape[1]
+
         data_split = self.get_random_split(data_train, self.n_splits)
         self.local_models = [self.base_model(n_neighbors=self.n_neighbors, **self.base_kwargs).fit(*split)
                              for i, split in enumerate(zip(*data_split))]
@@ -97,22 +134,18 @@ class SplitKNeighbors:
 
         return self
 
-    def local_predict(self, X, k=None, parallel=False):
-        # k is None if and only if local model is a regressor
-        n_k = 1 if k is None else len(k)
-
+    def local_predict(self, X, parallel=False):
         n_queries = X.shape[0]
-        local_estimates = np.zeros((self.n_splits, n_queries, n_k))  # local estimates
-        knn_distances = np.zeros((self.n_splits, n_queries, n_k))  # kNN distances to the query
-        if n_k == 1:
+        local_estimates = np.zeros((self.n_splits, n_queries, self.target_dim))  # local estimates
+        knn_distances = np.zeros((self.n_splits, n_queries))  # kNN distances to the query
+        if self.target_dim == 1:
             local_estimates = local_estimates.squeeze(-1)
-            knn_distances = knn_distances.squeeze(-1)
 
         # Local kNN operations
         start = timer()
         if not parallel:
             for m, model in enumerate(self.local_models):
-                local_estimates[m], knn_distances[m] = model.predict(X, k=k)  # (n_queries, n_k) or (n_queries,)
+                local_estimates[m], knn_distances[m] = model.predict(X)  # (n_queries,)
         else:  # parallel processing
             with mp.Pool() as pool:
                 local_returns = pool.map(predict, zip(self.local_models, [X] * self.n_splits))
@@ -143,7 +176,7 @@ class SplitSelectKNeighborsRegressor(SplitKNeighbors):
         super().__init__(**kwargs)
         self.thresholding = thresholding  # if True, take thresholding after each local estimates
         self.local_models = []
-        self.base_model = KNeighborsRegressorWithDistance
+        self.base_model = ExtendedKNeighborsRegressor
 
     def predict(self, X, parallel=False):
         # X: np.array; (n_queries, n_features)
@@ -176,6 +209,10 @@ class SplitSelectKNeighborsRegressor(SplitKNeighbors):
         #     np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_select, axis=0)
         # ].mean(axis=0)  # (n_queries)
         # final_estimates['soft0_select0'.format(self.n_neighbors)] = (local_estimates > 0.5).mean(axis=0)  # (n_queries,)
+
+        if self.is_classifier:
+            for key in final_estimates:
+                final_estimates[key] = self.onehot_encoder.inverse_transform(final_estimates[key]).reshape((-1,)) if self.multilabel_classification else final_estimates[key] > .5
 
         return final_estimates
 

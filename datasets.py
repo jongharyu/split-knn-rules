@@ -1,8 +1,10 @@
 import numpy as np
 import pandas as pd
+import string
 from pathlib import Path
 from scipy.stats import multivariate_normal
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
 
 import miniboone_utils as mb
 
@@ -12,7 +14,8 @@ class Dataset:
     def __init__(self):
         self.X = None
         self.y = None
-        pass
+        self.classification = None
+        self.onehot_encoder = None
 
     @property
     def data(self):
@@ -79,7 +82,7 @@ class HTRU2(Dataset):
         super().__init__()
         self.X, self.y = self.load_and_preprocess(root)
         self.classification = True
-        self.name = 'htru2'
+        self.name = 'HTRU2'
 
     @staticmethod
     def load_and_preprocess(root):
@@ -97,7 +100,7 @@ class MiniBooNE(Dataset):
         super().__init__()
         self.df = self.load_and_preprocess(root)
         self.classification = True
-        self.name = 'miniboone'
+        self.name = 'MiniBooNE'
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
@@ -259,6 +262,7 @@ class BNGLetter(Dataset):
         self.X, self.y = self.load_and_preprocess(root)
         self.classification = True
         self.name = 'BNGLetter'
+        self.onehot_encoder = OneHotEncoder().fit(np.array(list(string.ascii_uppercase)).reshape((-1, 1)))
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):

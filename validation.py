@@ -1,52 +1,62 @@
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
 from regressor import SplitSelectKNeighborsRegressor
 
 
-def compute_error_rate(truth, prediction):
-    wrong = 0
-    for x, y in zip(truth, prediction):
-        if x != y:
-            wrong = wrong + 1
-    return wrong / len(truth)
+def compute_error(truth, prediction, classification=True):
+    if classification:
+        wrong = 0
+        for x, y in zip(truth, prediction):
+            if x != y:
+                wrong = wrong + 1
+        return wrong / len(truth)
+    else:
+        # For regression, l1-norm
+        assert len(truth.shape) in [1, 2]
+        if len(truth.shape) == 1:
+            return np.abs(truth - prediction).mean()
+        else:
+            return np.abs(truth - prediction).sum(axis=1).mean()
 
 
-class GridSearchForKNeighborsClassifier:
+class GridSearchForKNeighborsEstimator:
     # Reference: https://github.com/lirongx/SubNN/blob/master/SubNN.py
-    def __init__(self, n_folds=5, n_repeat=1, verbose=True, max_valid_size=1000):
+    def __init__(self, n_folds=5, n_repeat=1, verbose=True, max_valid_size=1000, classification=True):
         self.n_folds = n_folds
         self.n_repeat = n_repeat
         self.verbose = verbose
         self.max_valid_size = max_valid_size
+        self.classification = classification
 
-    def compute_error(self, X_train, y_train, X_valid, y_valid, k):
+    def compute_error(self, x_train, y_train, x_valid, y_valid, k, **kwargs):
         if k > len(y_train):
             k = len(y_train)
-        classifier = KNeighborsClassifier(
+        Estimator = KNeighborsClassifier if self.classification else KNeighborsRegressor
+        estimator = Estimator(
             n_neighbors=k,
             n_jobs=-1,
-        ).fit(X_train, y_train)
-        y_pred = classifier.predict(X_valid)
-        error = compute_error_rate(y_valid, y_pred)
+        ).fit(x_train, y_train)
+        y_pred = estimator.predict(x_valid)
+        error = compute_error(y_valid, y_pred, self.classification)
         return error
 
-    def cross_validate(self, X, y, k):
+    def cross_validate(self, x, y, k, **kwargs):
         # calculate error rate of a given k through cross validation
         errors = []
         for repeat in range(self.n_repeat):
             skf = StratifiedKFold(n_splits=self.n_folds, shuffle=True)
-            for train_index, valid_index in skf.split(X, y):
-                X_train, X_valid = X[train_index], X[valid_index[:self.max_valid_size]]
+            for train_index, valid_index in skf.split(x, y):
+                x_train, x_valid = x[train_index], x[valid_index[:self.max_valid_size]]
                 y_train, y_valid = y[train_index], y[valid_index[:self.max_valid_size]]
-                error = self.compute_error(X_train, y_train, X_valid, y_valid, k)
+                error = self.compute_error(x_train, y_train, x_valid, y_valid, k, **kwargs)
                 errors.append(error)
 
         return np.mean(errors)
 
     def grid_search(self, X, y, k_max=None, fine_search=False):
-        # search for an optimal k and fit
+        # search for an optimal k
         if not k_max:
             k_max = X.shape[0]
 
@@ -88,17 +98,46 @@ class GridSearchForKNeighborsClassifier:
         return k_opt, profile
 
 
-class GridSearchForSplitSelect1NN(GridSearchForKNeighborsClassifier):
-    def __init__(self, parallel=False, **kwargs):
+class GridSearchForSplitSelect1NeighborEstimator(GridSearchForKNeighborsEstimator):
+    def __init__(self, parallel=False, classification=True, onehot_encoder=None, **kwargs):
         super().__init__(**kwargs)
         self.parallel = parallel
+        self.classification = classification
+        self.onehot_encoder = onehot_encoder
 
-    def compute_error(self, X_train, y_train, X_valid, y_valid, k):
-        regressor = SplitSelectKNeighborsRegressor(
+    def compute_error(self, x_train, y_train, x_valid, y_valid, k, select_ratio=None):
+        estimator = SplitSelectKNeighborsRegressor(
             n_neighbors=1,
             n_splits=k,
-            select_ratio=None,
-            verbose=False).fit(X_train, y_train)
-        y_pred = regressor.predict(X_valid, parallel=self.parallel)['split_select1_1NN'] > .5
-        error = compute_error_rate(y_valid, y_pred)
+            select_ratio=select_ratio,
+            verbose=False,
+            classification=self.classification,
+            onehot_encoder=self.onehot_encoder).fit(x_train, y_train)
+        y_pred = estimator.predict(x_valid, parallel=self.parallel)['split_select1_1NN']
+        error = compute_error(y_valid, y_pred, self.classification)
         return error
+
+    def grid_search(self, X, y, k_max=None, fine_search=False, search_select_ratio=False):
+        # search for an optimal k (and optionally an optimal select ratio)
+        n_split_opt, n_split_profile = super().grid_search(X, y, k_max, fine_search)
+        select_ratio_opt = None
+        select_ratio_profile = None
+        if search_select_ratio:
+            if self.verbose:
+                print("\t\tValidating select ratio: ", end='')
+            # find best select_ratio in [.1, .2, ..., .9]
+            param_set = []
+            param_err = []
+            default_select_ratio = 1- np.exp(-1 / 4)
+            for select_ratio in [i * default_select_ratio for i in range(1, 9)]:
+                param_set.append(select_ratio)
+                if self.verbose:
+                    print('{:.2f}'.format(select_ratio), end=' ')
+                err = self.cross_validate(X, y, n_split_opt, select_ratio=select_ratio)
+                param_err.append(err)
+            select_ratio_opt = param_set[np.argmin(param_err)]
+            select_ratio_profile = np.vstack([param_set, param_err])  # (2, len(param_set))
+            if self.verbose:
+                print()
+
+        return n_split_opt, n_split_profile, select_ratio_opt, select_ratio_profile
