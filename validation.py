@@ -30,27 +30,27 @@ class GridSearchForKNeighborsEstimator:
         self.max_valid_size = max_valid_size
         self.classification = classification
 
-    def compute_error(self, x_train, y_train, x_valid, y_valid, k, **kwargs):
+    def compute_error(self, X_train, y_train, X_valid, y_valid, k, **kwargs):
         if k > len(y_train):
             k = len(y_train)
         Estimator = KNeighborsClassifier if self.classification else KNeighborsRegressor
         estimator = Estimator(
             n_neighbors=k,
             n_jobs=-1,
-        ).fit(x_train, y_train)
-        y_pred = estimator.predict(x_valid)
+        ).fit(X_train, y_train)
+        y_pred = estimator.predict(X_valid)
         error = compute_error(y_valid, y_pred, self.classification)
         return error
 
-    def cross_validate(self, x, y, k, **kwargs):
+    def cross_validate(self, X, y, k, **kwargs):
         # calculate error rate of a given k through cross validation
         errors = []
         for repeat in range(self.n_repeat):
             skf = StratifiedKFold(n_splits=self.n_folds, shuffle=True)
-            for train_index, valid_index in skf.split(x, y):
-                x_train, x_valid = x[train_index], x[valid_index[:self.max_valid_size]]
+            for train_index, valid_index in skf.split(X, y):
+                X_train, X_valid = X[train_index], X[valid_index[:self.max_valid_size]]
                 y_train, y_valid = y[train_index], y[valid_index[:self.max_valid_size]]
-                error = self.compute_error(x_train, y_train, x_valid, y_valid, k, **kwargs)
+                error = self.compute_error(X_train, y_train, X_valid, y_valid, k, **kwargs)
                 errors.append(error)
 
         return np.mean(errors)
@@ -105,15 +105,15 @@ class GridSearchForSplitSelect1NeighborEstimator(GridSearchForKNeighborsEstimato
         self.classification = classification
         self.onehot_encoder = onehot_encoder
 
-    def compute_error(self, x_train, y_train, x_valid, y_valid, k, select_ratio=None):
+    def compute_error(self, X_train, y_train, X_valid, y_valid, k, select_ratio=None):
         estimator = SplitSelectKNeighborsRegressor(
             n_neighbors=1,
             n_splits=k,
             select_ratio=select_ratio,
             verbose=False,
             classification=self.classification,
-            onehot_encoder=self.onehot_encoder).fit(x_train, y_train)
-        y_pred = estimator.predict(x_valid, parallel=self.parallel)['split_select1_1NN']
+            onehot_encoder=self.onehot_encoder).fit(X_train, y_train)
+        y_pred = estimator.predict(X_valid, parallel=self.parallel)['split_select1_1NN']
         error = compute_error(y_valid, y_pred, self.classification)
         return error
 

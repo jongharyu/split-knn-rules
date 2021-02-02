@@ -50,6 +50,7 @@ parser.add_argument('--dataset', type=str, default='MiniBooNE',
                              'HIGGS',
                              'BNGLetter',
                              'WineQuality',
+                             'NewsGroups20',
                              'YearPredictionMSD'])
 parser.add_argument('--main-path', type=str, default='.',
                     help='main path where datasets live and loggings are saved')
@@ -98,15 +99,15 @@ def run():
 
     for n in range(n_trials):
         # Split dataset at random
-        x_train, x_test, y_train, y_test = dataset.train_test_split(test_size=args.test_size, seed=n)
+        X_train, X_test, y_train, y_test = dataset.train_test_split(test_size=args.test_size, seed=n)
 
         # Truncate test set to limit time complexity of experiments
-        x_test, y_test = x_test[:args.max_test_size], y_test[:args.max_test_size]
+        X_test, y_test = X_test[:args.max_test_size], y_test[:args.max_test_size]
         if n == 0:
-            print("Data size: train={}, test={}".format(x_train.shape[0], x_test.shape[0]))
+            print("Data size: train={}, test={}".format(X_train.shape[0], X_test.shape[0]))
 
         # set maximum k
-        k_max = np.min([args.k_max, x_train.shape[0] / 25])
+        k_max = np.min([args.k_max, X_train.shape[0] / 25])
 
         print("Trial #{}/{}".format(n + 1, n_trials))
         # Standard k-NN rules
@@ -121,7 +122,7 @@ def run():
                         n_repeat=1,
                         max_valid_size=args.max_test_size,
                         verbose=args.verbose,
-                ).grid_search(x_train, y_train, k_max=k_max)
+                ).grid_search(X_train, y_train, k_max=k_max)
                 model_selection_time = timer() - start
                 print('\t\t{}-fold CV ({:.2f}s)'.format(
                     args.n_folds,
@@ -133,9 +134,9 @@ def run():
             predictor = Predictor(n_neighbors=k_opt,
                                   n_jobs=-1 if args.parallel else None,
                                   algorithm=args.algorithm)
-            predictor.fit(x_train, y_train)
+            predictor.fit(X_train, y_train)
             print('\t{} (k={}): '.format(key, k_opt), end='')
-            y_test_pred = predictor.predict(x_test)
+            y_test_pred = predictor.predict(X_test)
             elapsed_times[key][n] = timer() - start
             error_rates[key][n] = compute_error(y_test_pred, y_test, dataset.classification)
 
@@ -154,7 +155,7 @@ def run():
             classification=dataset.classification,
             onehot_encoder=dataset.onehot_encoder,
         ).grid_search(
-            x_train,
+            X_train,
             y_train,
             k_max=k_max,
             search_select_ratio=True if dataset.onehot_encoder or args.search_select_ratio else False,
@@ -173,10 +174,10 @@ def run():
             verbose=False,
             classification=dataset.classification,
             onehot_encoder=dataset.onehot_encoder,
-            ).fit(x_train, y_train)
+            ).fit(X_train, y_train)
 
         print('\t{} (M={}, kappa={:.2f}): '.format('Msplit_1NN', n_splits_opt, select_ratio_opt), end='')
-        y_test_pred = estimator.predict(x_test, parallel=args.parallel)
+        y_test_pred = estimator.predict(X_test, parallel=args.parallel)
         elapsed_time = timer() - start
         for key in y_test_pred:
             model_selection_times[key][n] = model_selection_time

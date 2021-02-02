@@ -3,6 +3,7 @@ import pandas as pd
 import string
 from pathlib import Path
 from scipy.stats import multivariate_normal
+from sklearn.datasets import fetch_20newsgroups_vectorized
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 
@@ -95,6 +96,32 @@ class HTRU2(Dataset):
         return X, y
 
 
+class CREDIT(Dataset):
+    """
+    References
+    ----------
+    [1] https://github.com/meauxt/credit-card-default/blob/master/credit_card_default.ipynb
+    [2] https://www.kaggle.com/lucabasa/credit-card-default-a-very-pedagogical-notebook
+    """
+    def __init__(self, root='.'):
+        super().__init__()
+        self.X, self.y = self.load_and_preprocess(root)
+        self.classification = True
+        self.name = 'CREDIT'
+
+    @staticmethod
+    def load_and_preprocess(root, verbose=False):
+        xls = pd.ExcelFile("{}/data/CREDIT/credit_cards_dataset.xls".format(root))
+        df = xls.parse('Data')
+        df.columns = df.iloc[0]  # set the first row as column names
+        df = df.iloc[1:]  # drop the duplicated first row
+        del df['ID']  # drop the ID column
+        if verbose:
+            print(df)
+        X, y = np.array(df[df.columns[:-1]]).astype(float), np.array(df[df.columns[-1]]).astype(int)
+        return X, y
+
+
 class MiniBooNE(Dataset):
     def __init__(self, root='.'):
         super().__init__()
@@ -137,30 +164,14 @@ class MiniBooNE(Dataset):
         return X_train, X_test, y_train, y_test
 
 
-class CREDIT(Dataset):
-    """
-    References
-    ----------
-    [1] https://github.com/meauxt/credit-card-default/blob/master/credit_card_default.ipynb
-    [2] https://www.kaggle.com/lucabasa/credit-card-default-a-very-pedagogical-notebook
-    """
-    def __init__(self, root='.'):
+class NewsGroups20(Dataset):
+    def __init__(self, **kwargs):
         super().__init__()
-        self.X, self.y = self.load_and_preprocess(root)
+        self.X, self.y = fetch_20newsgroups_vectorized(subset='all', return_X_y=True)
+        self.X = self.X.toarray()
+        self.onehot_encoder = OneHotEncoder().fit(np.arange(20).reshape((-1, 1)))
         self.classification = True
-        self.name = 'CREDIT'
-
-    @staticmethod
-    def load_and_preprocess(root, verbose=False):
-        xls = pd.ExcelFile("{}/data/CREDIT/credit_cards_dataset.xls".format(root))
-        df = xls.parse('Data')
-        df.columns = df.iloc[0]  # set the first row as column names
-        df = df.iloc[1:]  # drop the duplicated first row
-        del df['ID']  # drop the ID column
-        if verbose:
-            print(df)
-        X, y = np.array(df[df.columns[:-1]]).astype(float), np.array(df[df.columns[-1]]).astype(int)
-        return X, y
+        self.name = 'NewsGroups20'
 
 
 class GISETTE(Dataset):
