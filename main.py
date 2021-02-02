@@ -41,14 +41,16 @@ parser.add_argument('--algorithm', type=str, default='auto',
 parser.add_argument('--parallel', type=str2bool, default=False, metavar='P',
                     help='use multiprocessors')
 parser.add_argument('--dataset', type=str, default='MiniBooNE',
-                    choices=['MiniBooNE', 'HTRU2', 'CREDIT', 'GISETTE',
+                    choices=['MiniBooNE',
+                             'HTRU2',
+                             'CREDIT', 'GISETTE',
                              'SUSY', 'HIGGS', 'BNGLetter',
                              'WineQuality', 'YearPredictionMSD'])
 parser.add_argument('--main-path', type=str, default='.',
                     help='main path where datasets live and loggings are saved')
 parser.add_argument('--k-max', type=int, default=1024)
 parser.add_argument('--n-folds', type=int, default=5)
-parser.add_argument('--temp', type=bool, action='store_true')
+parser.add_argument('--temp', action='store_true')
 parser.add_argument('--verbose', type=bool, default=True)
 
 args = parser.parse_args()
