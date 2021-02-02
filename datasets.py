@@ -82,7 +82,7 @@ class HTRU2(Dataset):
         super().__init__()
         self.X, self.y = self.load_and_preprocess(root)
         self.classification = True
-        self.name = 'htru2'
+        self.name = 'HTRU2'
 
     @staticmethod
     def load_and_preprocess(root):
@@ -100,7 +100,7 @@ class MiniBooNE(Dataset):
         super().__init__()
         self.df = self.load_and_preprocess(root)
         self.classification = True
-        self.name = 'miniboone'
+        self.name = 'MiniBooNE'
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):

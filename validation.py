@@ -1,35 +1,45 @@
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
 from regressor import SplitSelectKNeighborsRegressor
 
 
-def compute_error_rate(truth, prediction):
-    wrong = 0
-    for x, y in zip(truth, prediction):
-        if x != y:
-            wrong = wrong + 1
-    return wrong / len(truth)
+def compute_error(truth, prediction, classification=True):
+    if classification:
+        wrong = 0
+        for x, y in zip(truth, prediction):
+            if x != y:
+                wrong = wrong + 1
+        return wrong / len(truth)
+    else:
+        # For regression, l1-norm
+        assert len(truth.shape) in [1, 2]
+        if len(truth.shape) == 1:
+            return np.abs(truth - prediction).mean()
+        else:
+            return np.abs(truth - prediction).sum(axis=1).mean()
 
 
-class GridSearchForKNeighborsClassifier:
+class GridSearchForKNeighborsEstimator:
     # Reference: https://github.com/lirongx/SubNN/blob/master/SubNN.py
-    def __init__(self, n_folds=5, n_repeat=1, verbose=True, max_valid_size=1000):
+    def __init__(self, n_folds=5, n_repeat=1, verbose=True, max_valid_size=1000, classification=True):
         self.n_folds = n_folds
         self.n_repeat = n_repeat
         self.verbose = verbose
         self.max_valid_size = max_valid_size
+        self.classification = classification
 
     def compute_error(self, x_train, y_train, x_valid, y_valid, k, **kwargs):
         if k > len(y_train):
             k = len(y_train)
-        classifier = KNeighborsClassifier(
+        Estimator = KNeighborsClassifier if self.classification else KNeighborsRegressor
+        estimator = Estimator(
             n_neighbors=k,
             n_jobs=-1,
         ).fit(x_train, y_train)
-        y_pred = classifier.predict(x_valid)
-        error = compute_error_rate(y_valid, y_pred)
+        y_pred = estimator.predict(x_valid)
+        error = compute_error(y_valid, y_pred, self.classification)
         return error
 
     def cross_validate(self, x, y, k, **kwargs):
@@ -88,7 +98,7 @@ class GridSearchForKNeighborsClassifier:
         return k_opt, profile
 
 
-class GridSearchForSplitSelect1NN(GridSearchForKNeighborsClassifier):
+class GridSearchForSplitSelect1NeighborEstimator(GridSearchForKNeighborsEstimator):
     def __init__(self, parallel=False, classification=True, onehot_encoder=None, **kwargs):
         super().__init__(**kwargs)
         self.parallel = parallel
@@ -104,7 +114,7 @@ class GridSearchForSplitSelect1NN(GridSearchForKNeighborsClassifier):
             classification=self.classification,
             onehot_encoder=self.onehot_encoder).fit(x_train, y_train)
         y_pred = estimator.predict(x_valid, parallel=self.parallel)['split_select1_1NN']
-        error = compute_error_rate(y_valid, y_pred)
+        error = compute_error(y_valid, y_pred, self.classification)
         return error
 
     def grid_search(self, X, y, k_max=None, fine_search=False, search_select_ratio=False):

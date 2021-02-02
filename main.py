@@ -19,9 +19,9 @@ import matplotlib.pyplot as plt
 
 import datasets
 from regressor import SplitSelectKNeighborsRegressor
-from validation import compute_error_rate
+from validation import compute_error
 from utils import str2bool, Logger
-from validation import GridSearchForKNeighborsClassifier, GridSearchForSplitSelect1NN
+from validation import GridSearchForKNeighborsEstimator, GridSearchForSplitSelect1NeighborEstimator
 
 
 # mpl.style.use( 'ggplot' )
@@ -116,7 +116,7 @@ def run():
             if key == 'standard_kNN':
                 start = timer()
                 k_opt, validation_profiles[key][n] = \
-                    GridSearchForKNeighborsClassifier(
+                    GridSearchForKNeighborsEstimator(
                         n_folds=args.n_folds,
                         n_repeat=1,
                         max_valid_size=args.max_test_size,
@@ -137,7 +137,7 @@ def run():
             print('\t{} (k={}): '.format(key, k_opt), end='')
             y_test_pred = predictor.predict(x_test)
             elapsed_times[key][n] = timer() - start
-            error_rates[key][n] = compute_error_rate(y_test_pred, y_test)
+            error_rates[key][n] = compute_error(y_test_pred, y_test, dataset.classification)
 
             print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
@@ -145,7 +145,7 @@ def run():
         validation_profiles['Msplit_1NN'][n] = dict(n_splits=None, select_ratio=None)
         n_splits_opt, validation_profiles['Msplit_1NN'][n]['n_splits'], \
         select_ratio_opt, validation_profiles['Msplit_1NN'][n]['select_ratio'] \
-            = GridSearchForSplitSelect1NN(
+            = GridSearchForSplitSelect1NeighborEstimator(
             n_folds=args.n_folds,
             n_repeat=1,
             max_valid_size=args.max_test_size,
@@ -181,7 +181,7 @@ def run():
         for key in y_test_pred:
             model_selection_times[key][n] = model_selection_time
             best_params[key][n] = n_splits_opt
-            error_rates[key][n] = compute_error_rate(y_test_pred[key], y_test)
+            error_rates[key][n] = compute_error(y_test_pred[key], y_test, dataset.classification)
             elapsed_times[key][n] = elapsed_time
         print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
@@ -248,7 +248,6 @@ def run():
                          linewidth=0.1,
                          alpha=0.3,
                          color='blue')
-        plt.xscale('log', nonposx='clip')
         plt.title('{} ({} runs)'.format(args.dataset, n_trials))
         plt.legend()
         plt.savefig('{}/validation_profile_select_ratio.pdf'.format(run_path))
