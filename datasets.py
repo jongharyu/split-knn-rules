@@ -8,8 +8,6 @@ import miniboone_utils as mb
 
 
 # TODO: implement original_split method that returns the original train-valid-test split
-
-
 class Dataset:
     def __init__(self):
         self.X = None
