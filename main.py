@@ -49,9 +49,10 @@ parser.add_argument('--dataset', type=str, default='MiniBooNE',
                              'GISETTE',
                              'SUSY',
                              'HIGGS',
+                             'NewsGroups20',
                              'BNGLetter',
                              'WineQuality',
-                             'NewsGroups20',
+                             'CASP',
                              'YearPredictionMSD'])
 parser.add_argument('--main-path', type=str, default='.',
                     help='main path where datasets live and loggings are saved')
@@ -60,24 +61,25 @@ parser.add_argument('--n-folds', type=int, default=5)
 parser.add_argument('--temp', action='store_true')
 parser.add_argument('--verbose', type=bool, default=True)
 
-args = parser.parse_args()
-
-
-timestamp = datetime.datetime.now().isoformat(timespec='seconds')
-experiment_dir = Path('{}/results/{}/{}'.format(args.main_path, args.dataset, timestamp))
-experiment_dir.mkdir(parents=True, exist_ok=True)
-run_path = str(experiment_dir)
-if args.temp:
-    run_path = mkdtemp(dir=run_path)
-sys.stdout = Logger('{}/run.log'.format(run_path))
-
-# select datasets
-dataset = getattr(datasets, args.dataset)(root=args.main_path)
 
 if __name__ == '__main__':
     mp.set_start_method("spawn")
+
+    args = parser.parse_args()
     if args.parallel:
         print("Parallel processing...")
+
+    timestamp = datetime.datetime.now().isoformat(timespec='seconds')
+    experiment_dir = Path('{}/results/{}/{}'.format(args.main_path, args.dataset, timestamp))
+    experiment_dir.mkdir(parents=True, exist_ok=True)
+    run_path = str(experiment_dir)
+    if args.temp:
+        run_path = mkdtemp(dir=run_path)
+    sys.stdout = Logger('{}/run.log'.format(run_path))
+
+    # select datasets
+    dataset = getattr(datasets, args.dataset)(root=args.main_path)
+
     print('Path: {}'.format(run_path))
     print('Time: {}'.format(timestamp))
     print('Args: {}'.format(args))
@@ -127,6 +129,7 @@ if __name__ == '__main__':
                         n_repeat=1,
                         max_valid_size=args.max_test_size,
                         verbose=args.verbose,
+                        classification=dataset.classification,
                     ).grid_search(X_train, y_train, k_max=k_max)
                 model_selection_time = timer() - start
                 print('\t\t{}-fold CV ({:.2f}s)'.format(

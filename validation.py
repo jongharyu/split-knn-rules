@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
 from regressor import SplitSelectKNeighborsRegressor
@@ -46,8 +46,8 @@ class GridSearchForKNeighborsEstimator:
         # calculate error rate of a given k through cross validation
         errors = []
         for repeat in range(self.n_repeat):
-            skf = StratifiedKFold(n_splits=self.n_folds, shuffle=True)
-            for train_index, valid_index in skf.split(X, y):
+            fold = (StratifiedKFold if self.classification else KFold)(n_splits=self.n_folds, shuffle=True)
+            for train_index, valid_index in fold.split(X, y):
                 X_train, X_valid = X[train_index], X[valid_index[:self.max_valid_size]]
                 y_train, y_valid = y[train_index], y[valid_index[:self.max_valid_size]]
                 error = self.compute_error(X_train, y_train, X_valid, y_valid, k, **kwargs)
