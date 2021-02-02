@@ -6,6 +6,7 @@ import datetime
 import multiprocessing as mp
 import numpy as np
 import pickle
+import pprint as pp
 import sys
 from collections import defaultdict
 from functools import partial
@@ -77,9 +78,13 @@ if __name__ == '__main__':
     mp.set_start_method("spawn")
     if args.parallel:
         print("Parallel processing...")
-
     print('Path: {}'.format(run_path))
     print('Time: {}'.format(timestamp))
+    print('Args: {}'.format(args))
+    info = cpuinfo.get_cpu_info()
+    del info['flags']
+    print('CPUInfo: ')
+    pp.pprint(info)
 
     n_trials = args.n_trials
     keys = ['standard_1NN',
@@ -135,7 +140,9 @@ if __name__ == '__main__':
                                   n_jobs=-1 if args.parallel else None,
                                   algorithm=args.algorithm)
             predictor.fit(X_train, y_train)
-            print('\t{} (k={}): '.format(key, k_opt), end='')
+            print('\t{} (k={}; {}): '.format(
+                key, k_opt, predictor._fit_method
+            ), end='')
             y_test_pred = predictor.predict(X_test)
             elapsed_times[key][n] = timer() - start
             error_rates[key][n] = compute_error(y_test_pred, y_test, dataset.classification)
@@ -179,8 +186,10 @@ if __name__ == '__main__':
                 pool=pool,
             ).fit(X_train, y_train)
 
-            print('\t{} (M={}, kappa={:.2f}): '.format('Msplit_1NN', n_splits_opt,
-                                                       select_ratio_opt if select_ratio_opt else -1), end='')
+            print('\t{} (M={}, kappa={:.2f}; {}): '.format(
+                'Msplit_1NN', n_splits_opt, select_ratio_opt if select_ratio_opt else -1,
+                estimator._fit_method,
+            ), end='')
             y_test_pred = estimator.predict(X_test, parallel=args.parallel)
             elapsed_time = timer() - start
             for key in y_test_pred:
