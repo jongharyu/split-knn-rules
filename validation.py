@@ -128,8 +128,8 @@ class GridSearchForSplitSelect1NeighborEstimator(GridSearchForKNeighborsEstimato
             # find best select_ratio in [.1, .2, ..., .9]
             param_set = []
             param_err = []
-            default_select_ratio = 1- np.exp(-1 / 4)
-            for select_ratio in [i * default_select_ratio for i in range(1, 9)]:
+            default_select_ratio = 1 - np.exp(-1 / 4)
+            for select_ratio in [i * default_select_ratio / 2 for i in range(1, 9)]:
                 param_set.append(select_ratio)
                 if self.verbose:
                     print('{:.2f}'.format(select_ratio), end=' ')
