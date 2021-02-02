@@ -172,7 +172,7 @@ def run(pool=None):
             pool=pool,
             ).fit(X_train, y_train)
 
-        print('\t{} (M={}, kappa={:.2f}): '.format('Msplit_1NN', n_splits_opt, select_ratio_opt), end='')
+        print('\t{} (M={}, kappa={:.2f}): '.format('Msplit_1NN', n_splits_opt, select_ratio_opt if select_ratio_opt else -1), end='')
         y_test_pred = estimator.predict(X_test, parallel=args.parallel)
         elapsed_time = timer() - start
         for key in y_test_pred:
