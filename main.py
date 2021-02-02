@@ -62,14 +62,12 @@ parser.add_argument('--verbose', type=bool, default=True)
 args = parser.parse_args()
 
 
-run_id = datetime.datetime.now().isoformat(timespec='seconds')
-experiment_dir = Path('{}/results/{}/'.format(args.main_path, args.dataset))
+timestamp = datetime.datetime.now().isoformat(timespec='seconds')
+experiment_dir = Path('{}/results/{}/{}'.format(args.main_path, args.dataset, timestamp))
 experiment_dir.mkdir(parents=True, exist_ok=True)
 run_path = str(experiment_dir)
 if args.temp:
-    run_path = mkdtemp(prefix=run_id, dir=run_path)
-else:
-    run_path = '/'.join([run_path, run_id])
+    run_path = mkdtemp(dir=run_path)
 sys.stdout = Logger('{}/run.log'.format(run_path))
 
 # select datasets
@@ -80,8 +78,8 @@ if __name__ == '__main__':
     if args.parallel:
         print("Parallel processing...")
 
-    print('Expt: {}'.format(run_path))
-    print('RunID: {}'.format(run_id))
+    print('Path: {}'.format(run_path))
+    print('Time: {}'.format(timestamp))
 
     n_trials = args.n_trials
     keys = ['standard_1NN',
