@@ -48,7 +48,7 @@ parser.add_argument('--main-path', type=str, default='.',
                     help='main path where datasets live and loggings are saved')
 parser.add_argument('--k-max', type=int, default=1024)
 parser.add_argument('--n-folds', type=int, default=5)
-parser.add_argument('--temp', type=bool, default=False)
+parser.add_argument('--temp', type=bool, action='store_true')
 parser.add_argument('--verbose', type=bool, default=True)
 
 args = parser.parse_args()
@@ -149,7 +149,7 @@ def run():
                 verbose=args.verbose,
         ).grid_search(X_train, y_train, k_max=k_max)
         model_selection_time = timer() - start
-        print('\t\t{}-fold CV ({:.2f}s): '.format(
+        print('\t\t{}-fold CV ({:.2f}s)'.format(
             args.n_folds,
             model_selection_time))
 
