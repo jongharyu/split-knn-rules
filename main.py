@@ -52,7 +52,7 @@ parser.add_argument('--dataset', type=str, default='MiniBooNE',
                              'NewsGroups20',
                              'BNGLetter',
                              'WineQuality',
-                             'Superconductivity',
+                             'GasTurbine',
                              'YearPredictionMSD'])
 parser.add_argument('--main-path', type=str, default='.',
                     help='main path where datasets live and loggings are saved')

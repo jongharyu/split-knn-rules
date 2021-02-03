@@ -306,11 +306,11 @@ class WineQuality(Dataset):
         return X, y
 
 
-class Superconductivity(Dataset):
+class GasTurbine(Dataset):
     """
     References
     ----------
-    [1] https://archive.ics.uci.edu/ml/datasets/Superconductivity+Data
+    [1] https://archive.ics.uci.edu/ml/datasets/Gas+Turbine+CO+and+NOx+Emission+Data+Set
     """
     def __init__(self, root='.'):
         super().__init__()
@@ -320,10 +320,9 @@ class Superconductivity(Dataset):
 
     @staticmethod
     def load_and_preprocess(root):
-        filename = '{}/data/superconduct/train.csv'.format(root)
-        df = pd.read_csv(filename)
-        X, y = np.array(df[df.columns[:-1]]), np.array(df[df.columns[-1]])
-
+        df = pd.concat([pd.read_csv("{}/data/GasTurbine/gt_{}.csv".format(root, year)) for year in range(2011, 2016)], axis=0)
+        X, y = np.array(df[df.columns[:-2]]), np.array(df[df.columns[-2:]])
+        y = (y - y.mean(axis=0)) / y.std(axis=0)
         return X, y
 
 
