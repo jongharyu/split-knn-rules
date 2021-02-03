@@ -298,9 +298,9 @@ class WineQuality(Dataset):
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
-        # red = pd.read_csv('{}/data/WineQuality/winequality-red.csv'.format(root), low_memory=False, sep=';')
+        red = pd.read_csv('{}/data/WineQuality/winequality-red.csv'.format(root), low_memory=False, sep=';')
         white = pd.read_csv('{}/data/WineQuality/winequality-white.csv'.format(root), low_memory=False, sep=';')
-        # df = pd.concat([red, white], ignore_index=True)
+        df = pd.concat([red, white], ignore_index=True)
         df = white
         X, y = np.array(df[df.columns[:-1]]), np.array(df[df.columns[-1]])
 
