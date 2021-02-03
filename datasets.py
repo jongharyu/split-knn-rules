@@ -298,31 +298,12 @@ class WineQuality(Dataset):
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
-        red = pd.read_csv('{}/data/WineQuality/winequality-red.csv'.format(root), low_memory=False, sep=';')
+        # red = pd.read_csv('{}/data/WineQuality/winequality-red.csv'.format(root), low_memory=False, sep=';')
         white = pd.read_csv('{}/data/WineQuality/winequality-white.csv'.format(root), low_memory=False, sep=';')
-        df = pd.concat([red, white], ignore_index=True)
+        # df = pd.concat([red, white], ignore_index=True)
+        df = white
         X, y = np.array(df[df.columns[:-1]]), np.array(df[df.columns[-1]])
 
-        return X, y
-
-
-class GasTurbine(Dataset):
-    """
-    References
-    ----------
-    [1] https://archive.ics.uci.edu/ml/datasets/Gas+Turbine+CO+and+NOx+Emission+Data+Set
-    """
-    def __init__(self, root='.'):
-        super().__init__()
-        self.X, self.y = self.load_and_preprocess(root)
-        self.classification = False
-        self.name = 'Superconductivity'
-
-    @staticmethod
-    def load_and_preprocess(root):
-        df = pd.concat([pd.read_csv("{}/data/GasTurbine/gt_{}.csv".format(root, year)) for year in range(2011, 2016)], axis=0)
-        X, y = np.array(df[df.columns[:-2]]), np.array(df[df.columns[-2:]])
-        y = (y - y.mean(axis=0)) / y.std(axis=0)
         return X, y
 
 

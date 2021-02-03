@@ -77,8 +77,11 @@ if __name__ == '__main__':
         run_path = mkdtemp(dir=run_path)
     sys.stdout = Logger('{}/run.log'.format(run_path))
 
-    # select datasets
+    # load datasets
+    print("Loading data... ", end='')
+    start = timer()
     dataset = getattr(datasets, args.dataset)(root=args.main_path)
+    print("done ({:.2f}s)".format(timer() - start))
 
     print('Path: {}'.format(run_path))
     print('Time: {}'.format(timestamp))
