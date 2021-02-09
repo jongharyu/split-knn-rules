@@ -1,6 +1,6 @@
 # Love Thy Next-Door Neighbor: Minimax Optimal Regression and Classification Based on the 1-Nearest Neighbor Search
 
-![Split k-NN rules](split_knn.png)
+![Split k-NN rules](img/split_knn.png)
 
 
 ## Requirements
