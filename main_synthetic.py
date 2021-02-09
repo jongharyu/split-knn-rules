@@ -10,7 +10,7 @@ from timeit import default_timer as timer
 
 from datasets import MixtureOfTwoGaussians
 from regressor import SplitSelectKNeighborsRegressor
-from validation import compute_error_rate
+from validation import compute_error
 from utils import generate_keys
 
 # Experiment 1. Simulation with mixture of Gaussians
@@ -57,7 +57,7 @@ for sigma in sigmas:
                 print("\t{}: ".format(key), end="")  # classifier._fit_method
                 y_test_pred = classifier.predict(X_test)
                 elapsed_times[key][i, n] = timer() - start
-                error_rates[key][i, n] = compute_error_rate(y_test_pred, y_test)
+                error_rates[key][i, n] = compute_error(y_test_pred, y_test)
                 print("\t\t\t\t\t{:.4f} ({:.2f}s)".format(error_rates[key][i, n], elapsed_times[key][i, n]))
 
             # 2) Split rules
@@ -77,7 +77,7 @@ for sigma in sigmas:
                 for key in keys:
                     y_test_pred[key] = y_test_pred[key] > .5
                     elapsed_times[key][i, n] = elapsed_time
-                    error_rates[key][i, n] = compute_error_rate(y_test_pred[key], y_test)
+                    error_rates[key][i, n] = compute_error(y_test_pred[key], y_test)
 
                 print("\t\t{:.4f}, {:.4f} ({:.2f}s)".format(
                     error_rates[keys[0]][i, n],

@@ -22,7 +22,7 @@ import datasets
 from regressor import SplitSelectKNeighborsRegressor
 from validation import compute_error
 from utils import str2bool, Logger
-from validation import GridSearchForKNeighborsEstimator, GridSearchForSplitSelect1NeighborEstimator
+from validation import GridSearchForKNeighborsEstimator, GridSearchForSplitSelectKNeighborsEstimator
 
 
 # mpl.style.use( 'ggplot' )
@@ -39,7 +39,9 @@ parser.add_argument('--n-trials', type=int, default=1,
 parser.add_argument('--algorithm', type=str, default='auto',
                     help='knn search algorithm (default: "auto")',
                     choices=['auto', 'ball_tree', 'kd_tree', 'brute'])
+parser.add_argument('--n-neighbors', type=int, default=1)
 parser.add_argument('--search-select-ratio', action='store_true')
+parser.add_argument('--no-standard', action='store_false')
 parser.add_argument('--parallel', type=str2bool, default=False, metavar='P',
                     help='use multiprocessors')
 parser.add_argument('--dataset', type=str, default='MiniBooNE',
@@ -121,46 +123,47 @@ if __name__ == '__main__':
 
         print("Trial #{}/{}".format(n + 1, n_trials))
         # Standard k-NN rules
-        for key in ['standard_1NN', 'standard_kNN']:
-            k_opt = 1
-            model_selection_time = 0.
-            if key == 'standard_kNN':
+        if args.no_standard:
+            for key in ['standard_1NN', 'standard_kNN']:
+                k_opt = 1
+                model_selection_time = 0.
+                if key == 'standard_kNN':
+                    start = timer()
+                    k_opt, validation_profiles[key][n] = \
+                        GridSearchForKNeighborsEstimator(
+                            n_folds=args.n_folds,
+                            n_repeat=1,
+                            max_valid_size=args.max_test_size,
+                            verbose=args.verbose,
+                            classification=dataset.classification,
+                        ).grid_search(X_train, y_train, k_max=k_max)
+                    model_selection_time = timer() - start
+                    print('\t\t{}-fold CV ({:.2f}s)'.format(
+                        args.n_folds,
+                        model_selection_time))
+                best_params[key] = k_opt
+                model_selection_times[key][n] = model_selection_time
                 start = timer()
-                k_opt, validation_profiles[key][n] = \
-                    GridSearchForKNeighborsEstimator(
-                        n_folds=args.n_folds,
-                        n_repeat=1,
-                        max_valid_size=args.max_test_size,
-                        verbose=args.verbose,
-                        classification=dataset.classification,
-                    ).grid_search(X_train, y_train, k_max=k_max)
-                model_selection_time = timer() - start
-                print('\t\t{}-fold CV ({:.2f}s)'.format(
-                    args.n_folds,
-                    model_selection_time))
-            best_params[key] = k_opt
-            model_selection_times[key] = model_selection_time
-            start = timer()
-            Predictor = KNeighborsClassifier if dataset.classification else KNeighborsRegressor
-            predictor = Predictor(n_neighbors=k_opt,
-                                  n_jobs=-1 if args.parallel else None,
-                                  algorithm=args.algorithm)
-            predictor.fit(X_train, y_train)
-            print('\t{} (k={}; {}): '.format(
-                key, k_opt, predictor._fit_method
-            ), end='')
-            y_test_pred = predictor.predict(X_test)
-            elapsed_times[key][n] = timer() - start
-            error_rates[key][n] = compute_error(y_test_pred, y_test, dataset.classification)
+                Predictor = KNeighborsClassifier if dataset.classification else KNeighborsRegressor
+                predictor = Predictor(n_neighbors=k_opt,
+                                      n_jobs=-1 if args.parallel else None,
+                                      algorithm=args.algorithm)
+                predictor.fit(X_train, y_train)
+                print('\t{} (k={}; {}): '.format(
+                    key, k_opt, predictor._fit_method
+                ), end='')
+                y_test_pred = predictor.predict(X_test)
+                elapsed_times[key][n] = timer() - start
+                error_rates[key][n] = compute_error(y_test_pred, y_test, dataset.classification)
 
-            print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
+                print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
         # Split rules
         with mp.get_context("spawn").Pool() as pool:
             validation_profiles['Msplit_1NN'][n] = dict(n_splits=None, select_ratio=None)
             n_splits_opt, validation_profiles['Msplit_1NN'][n]['n_splits'], \
             select_ratio_opt, validation_profiles['Msplit_1NN'][n]['select_ratio'] \
-                = GridSearchForSplitSelect1NeighborEstimator(
+                = GridSearchForSplitSelectKNeighborsEstimator(
                 n_folds=args.n_folds,
                 n_repeat=1,
                 max_valid_size=args.max_test_size,
@@ -168,11 +171,12 @@ if __name__ == '__main__':
                 verbose=args.verbose,
                 classification=dataset.classification,
                 onehot_encoder=dataset.onehot_encoder,
+                n_neighbors=args.n_neighbors,
                 pool=pool,
             ).grid_search(
                 X_train,
                 y_train,
-                k_max=k_max,
+                n_splits_max=k_max,
                 search_select_ratio=True if dataset.onehot_encoder or args.search_select_ratio else False,
             )
             model_selection_time = timer() - start

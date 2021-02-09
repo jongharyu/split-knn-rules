@@ -98,31 +98,32 @@ class GridSearchForKNeighborsEstimator:
         return k_opt, profile
 
 
-class GridSearchForSplitSelect1NeighborEstimator(GridSearchForKNeighborsEstimator):
-    def __init__(self, parallel=False, classification=True, onehot_encoder=None, pool=None, **kwargs):
+class GridSearchForSplitSelectKNeighborsEstimator(GridSearchForKNeighborsEstimator):
+    def __init__(self, parallel=False, classification=True, onehot_encoder=None, n_neighbors=1, pool=None, **kwargs):
         super().__init__(**kwargs)
         self.parallel = parallel
         self.classification = classification
         self.onehot_encoder = onehot_encoder
         self.pool = pool
+        self.n_neighbors = n_neighbors
 
-    def compute_error(self, X_train, y_train, X_valid, y_valid, k, select_ratio=None):
+    def compute_error(self, X_train, y_train, X_valid, y_valid, n_splits, select_ratio=None):
         estimator = SplitSelectKNeighborsRegressor(
-            n_neighbors=1,
-            n_splits=k,
+            n_neighbors=self.n_neighbors,
+            n_splits=n_splits,
             select_ratio=select_ratio,
             verbose=False,
             classification=self.classification,
             onehot_encoder=self.onehot_encoder,
             pool=self.pool,
         ).fit(X_train, y_train)
-        y_pred = estimator.predict(X_valid, parallel=self.parallel)['split_select1_1NN']
+        y_pred = estimator.predict(X_valid, parallel=self.parallel)['split_select1_{}NN'.format(self.n_neighbors)]
         error = compute_error(y_valid, y_pred, self.classification)
         return error
 
-    def grid_search(self, X, y, k_max=None, fine_search=False, search_select_ratio=False):
+    def grid_search(self, X, y, n_splits_max=None, fine_search=False, search_select_ratio=False):
         # search for an optimal k (and optionally an optimal select ratio)
-        n_split_opt, n_split_profile = super().grid_search(X, y, k_max, fine_search)
+        n_splits_opt, n_splits_profile = super().grid_search(X, y, n_splits_max, fine_search)
         select_ratio_opt = None
         select_ratio_profile = None
         if search_select_ratio:
@@ -136,11 +137,11 @@ class GridSearchForSplitSelect1NeighborEstimator(GridSearchForKNeighborsEstimato
                 param_set.append(select_ratio)
                 if self.verbose:
                     print('{:.2f}'.format(select_ratio), end=' ')
-                err = self.cross_validate(X, y, n_split_opt, select_ratio=select_ratio)
+                err = self.cross_validate(X, y, n_splits_opt, select_ratio=select_ratio)
                 param_err.append(err)
             select_ratio_opt = param_set[np.argmin(param_err)]
             select_ratio_profile = np.vstack([param_set, param_err])  # (2, len(param_set))
             if self.verbose:
                 print()
 
-        return n_split_opt, n_split_profile, select_ratio_opt, select_ratio_profile
+        return n_splits_opt, n_splits_profile, select_ratio_opt, select_ratio_profile
