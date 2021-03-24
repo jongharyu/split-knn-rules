@@ -22,7 +22,7 @@ import datasets
 from regressor import SplitSelectKNeighborsRegressor
 from validation import compute_error
 from utils import str2bool, Logger
-from validation import GridSearchForKNeighborsEstimator, GridSearchForSplitSelectKNeighborsEstimator
+from validation import GridSearchForKNeighborsEstimator, GridSearchForSplitKNeighborsEstimator
 
 
 # mpl.style.use( 'ggplot' )
@@ -107,6 +107,7 @@ if __name__ == '__main__':
     validation_profiles = dict(
         standard_kNN={n: None for n in range(n_trials)},
         Msplit_1NN={n: None for n in range(n_trials)},
+        Mbig_1NN={n: None for n in range(n_trials)},
     )
 
     for n in range(n_trials):
@@ -123,7 +124,7 @@ if __name__ == '__main__':
 
         print("Trial #{}/{}".format(n + 1, n_trials))
         # Standard k-NN rules
-        if args.no_standard:
+        if not args.no_standard:
             for key in ['standard_1NN', 'standard_kNN']:
                 k_opt = 1
                 model_selection_time = 0.
@@ -160,10 +161,12 @@ if __name__ == '__main__':
 
         # Split rules
         with mp.get_context("spawn").Pool() as pool:
+            validation_profiles['Mbig_1NN'][n] = dict(n_splits=None)
             validation_profiles['Msplit_1NN'][n] = dict(n_splits=None, select_ratio=None)
-            n_splits_opt, validation_profiles['Msplit_1NN'][n]['n_splits'], \
+            n_splits_opt_select0, validation_profiles['Mbig_1NN'][n]['n_splits'], \
+            n_splits_opt_select1, validation_profiles['Msplit_1NN'][n]['n_splits'], \
             select_ratio_opt, validation_profiles['Msplit_1NN'][n]['select_ratio'] \
-                = GridSearchForSplitSelectKNeighborsEstimator(
+                = GridSearchForSplitKNeighborsEstimator(
                 n_folds=args.n_folds,
                 n_repeat=1,
                 max_valid_size=args.max_test_size,
@@ -184,10 +187,11 @@ if __name__ == '__main__':
                 args.n_folds,
                 model_selection_time))
 
+            # With optimal M based on the performance of the rule without selection (aka big k-NN)
             start = timer()
-            estimator = SplitSelectKNeighborsRegressor(
+            estimator_select0 = SplitSelectKNeighborsRegressor(
                 n_neighbors=1,
-                n_splits=n_splits_opt,
+                n_splits=n_splits_opt_select0,
                 select_ratio=select_ratio_opt,
                 algorithm=args.algorithm,
                 verbose=False,
@@ -197,14 +201,41 @@ if __name__ == '__main__':
             ).fit(X_train, y_train)
 
             print('\t{} (M={}, kappa={:.2f}; {}): '.format(
-                'Msplit_1NN', n_splits_opt, select_ratio_opt if select_ratio_opt else -1,
-                estimator._fit_method,
+                'Mbig_1NN', n_splits_opt_select0, select_ratio_opt if select_ratio_opt else -1,
+                estimator_select0._fit_method,
             ), end='')
-            y_test_pred = estimator.predict(X_test, parallel=args.parallel)
+            y_test_pred = estimator_select0.predict(X_test, parallel=args.parallel)
+            elapsed_time = timer() - start
+            for key in y_test_pred:
+                modified_key = key + '_select0'
+                model_selection_times[modified_key][n] = model_selection_time
+                best_params[modified_key][n] = n_splits_opt_select0
+                error_rates[modified_key][n] = compute_error(y_test_pred[key], y_test, dataset.classification)
+                elapsed_times[modified_key][n] = elapsed_time
+            print("{:.4f} ({:.2f}s)".format(error_rates[modified_key][n], elapsed_times[modified_key][n]))
+
+            # With optimal M based on the performance of the selective rule
+            start = timer()
+            estimator_select1 = SplitSelectKNeighborsRegressor(
+                n_neighbors=1,
+                n_splits=n_splits_opt_select1,
+                select_ratio=select_ratio_opt,
+                algorithm=args.algorithm,
+                verbose=False,
+                classification=dataset.classification,
+                onehot_encoder=dataset.onehot_encoder,
+                pool=pool,
+            ).fit(X_train, y_train)
+
+            print('\t{} (M={}, kappa={:.2f}; {}): '.format(
+                'Msplit_1NN', n_splits_opt_select1, select_ratio_opt if select_ratio_opt else -1,
+                estimator_select1._fit_method,
+            ), end='')
+            y_test_pred = estimator_select1.predict(X_test, parallel=args.parallel)
             elapsed_time = timer() - start
             for key in y_test_pred:
                 model_selection_times[key][n] = model_selection_time
-                best_params[key][n] = n_splits_opt
+                best_params[key][n] = n_splits_opt_select1
                 error_rates[key][n] = compute_error(y_test_pred[key], y_test, dataset.classification)
                 elapsed_times[key][n] = elapsed_time
             print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
@@ -225,9 +256,11 @@ if __name__ == '__main__':
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Plot validation profiles
-    colors = ['red', 'blue']
-    for i, key in enumerate(['standard_kNN', 'Msplit_1NN']):
+    colors = ['red', 'blue', 'green']
+    for i, key in enumerate(['standard_kNN', 'Msplit_1NN', 'Mbig_1NN']):
         if key == 'standard_kNN':
+            if args.no_standard:
+                continue
             param_set = validation_profiles[key][0][0]
         else:
             param_set = validation_profiles[key][0]['n_splits'][0]

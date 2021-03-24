@@ -145,3 +145,132 @@ class GridSearchForSplitSelectKNeighborsEstimator(GridSearchForKNeighborsEstimat
                 print()
 
         return n_splits_opt, n_splits_profile, select_ratio_opt, select_ratio_profile
+
+
+class GridSearchForSplitKNeighborsEstimator(GridSearchForKNeighborsEstimator):
+    def __init__(self, parallel=False, classification=True, onehot_encoder=None, n_neighbors=1, pool=None, **kwargs):
+        super().__init__(**kwargs)
+        self.parallel = parallel
+        self.classification = classification
+        self.onehot_encoder = onehot_encoder
+        self.pool = pool
+        self.n_neighbors = n_neighbors
+
+    def compute_error(self, X_train, y_train, X_valid, y_valid, n_splits, select_ratio=None):
+        estimator = SplitSelectKNeighborsRegressor(
+            n_neighbors=self.n_neighbors,
+            n_splits=n_splits,
+            select_ratio=select_ratio,
+            verbose=False,
+            classification=self.classification,
+            onehot_encoder=self.onehot_encoder,
+            pool=self.pool,
+        ).fit(X_train, y_train)
+
+        y_pred_select1 = estimator.predict(X_valid, parallel=self.parallel)[
+            'split_select1_{}NN'.format(self.n_neighbors)]
+        error_select1 = compute_error(y_valid, y_pred_select1, self.classification)
+
+        y_pred_select0 = estimator.predict(X_valid, parallel=self.parallel)[
+            'split_select0_{}NN'.format(self.n_neighbors)]
+        error_select0 = compute_error(y_valid, y_pred_select0, self.classification)
+
+        return error_select1, error_select0
+
+    def cross_validate(self, X, y, k, **kwargs):
+        # calculate error rate of a given k through cross validation
+        # modified to deal with two error rates (select1 and select0)
+        errors_select1 = []
+        errors_select0 = []
+        for repeat in range(self.n_repeat):
+            fold = (StratifiedKFold if self.classification else KFold)(n_splits=self.n_folds, shuffle=True)
+            for train_index, valid_index in fold.split(X, y):
+                X_train, X_valid = X[train_index], X[valid_index[:self.max_valid_size]]
+                y_train, y_valid = y[train_index], y[valid_index[:self.max_valid_size]]
+                error_select1, error_select0 = self.compute_error(X_train, y_train, X_valid, y_valid, k, **kwargs)
+                errors_select1.append(error_select1)
+                errors_select0.append(error_select0)
+
+        return np.mean(errors_select1), np.mean(errors_select0)
+
+    def grid_search(self, X, y, n_splits_max=None, fine_search=False, search_select_ratio=False):
+        # search for an optimal n_splits (and optionally an optimal select ratio)
+
+        k_max = n_splits_max
+        if not k_max:
+            k_max = X.shape[0]
+
+        if self.verbose:
+            print("\t\tValidating (max={}): ".format(int(k_max)), end='')
+
+        # 1) coarse search: find best k in [3, 7, 15, 31,...]
+        k_set_select1 = []
+        k_err_select1 = []
+
+        k_set_select0 = []
+        k_err_select0 = []
+
+        k = 3
+        while k < k_max:
+            k_set_select1.append(k)
+            k_set_select0.append(k)
+            if self.verbose:
+                print(k, end=' ')
+            err_select1, err_select0 = self.cross_validate(X, y, k)
+            k_err_select1.append(err_select1)
+            k_err_select0.append(err_select0)
+            k = 2 * (k + 1) - 1
+        k_opt_rough_select1 = k_set_select1[np.argmin(k_err_select1)]
+
+        # 2) (optional) fine search: find best k in [.5 * k_opt_rough - 10, 2 * k_opt_rough + 10]
+        if fine_search:
+            k_search_start = np.max([(max(1, int(.5 * k_opt_rough_select1) - 10) // 2) * 2 + 1, 3])
+            k_search_end = int(min(2 * k_opt_rough_select1 + 11, np.sqrt(X.shape[0])))
+            for k in range(k_search_start, k_search_end, 2):
+                if k not in k_set_select1:
+                    k_set_select1.append(k)
+                    if self.verbose:
+                        print(k, end=' ')
+                    err = self.cross_validate(X, y, k)
+                    k_err_select1.append(err)
+
+        k_set_select1 = np.array(k_set_select1)
+        k_err_select1 = np.array(k_err_select1)
+        k_opt_select1 = k_set_select1[np.argmin(k_err_select1)]
+        indices_select1 = np.argsort(k_set_select1)
+        profile_select1 = np.vstack([k_set_select1[indices_select1], k_err_select1[indices_select1]])  # (2, len(k_set))
+
+        k_set_select0 = np.array(k_set_select0)
+        k_err_select0 = np.array(k_err_select0)
+        k_opt_select0 = k_set_select0[np.argmin(k_err_select0)]
+        indices_select0 = np.argsort(k_set_select0)
+        profile_select0 = np.vstack([k_set_select0[indices_select0], k_err_select0[indices_select0]])  # (2, len(k_set))
+        if self.verbose:
+            print()
+
+        n_splits_opt_select1, n_splits_profile_select1 = k_opt_select1, profile_select1
+        n_splits_opt_select0, n_splits_profile_select0 = k_opt_select0, profile_select0
+
+        select_ratio_opt = None
+        select_ratio_profile = None
+        if search_select_ratio:
+            if self.verbose:
+                print("\t\tValidating select ratio: ", end='')
+            # find best select_ratio in [.1, .2, ..., .9]
+            param_set = []
+            param_err = []
+            default_select_ratio = 1 - np.exp(-1 / 4)
+            for select_ratio in [i * default_select_ratio / 2 for i in range(1, 9)]:
+                param_set.append(select_ratio)
+                if self.verbose:
+                    print('{:.2f}'.format(select_ratio), end=' ')
+                err = self.cross_validate(X, y, n_splits_opt_select1, select_ratio=select_ratio)
+                param_err.append(err)
+            select_ratio_opt = param_set[np.argmin(param_err)]
+            select_ratio_profile = np.vstack([param_set, param_err])  # (2, len(param_set))
+            if self.verbose:
+                print()
+
+        return n_splits_opt_select0, n_splits_profile_select0, \
+               n_splits_opt_select1, n_splits_profile_select1, \
+               select_ratio_opt, select_ratio_profile
