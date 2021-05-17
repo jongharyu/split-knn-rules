@@ -58,6 +58,7 @@ parser.add_argument('--dataset', type=str, default='MiniBooNE',
 parser.add_argument('--main-path', type=str, default='.',
                     help='main path where datasets live and loggings are saved')
 parser.add_argument('--k-max', type=int, default=1024)
+parser.add_argument('--fine-search', type=str2bool, default=False)
 parser.add_argument('--n-folds', type=int, default=5)
 parser.add_argument('--temp', action='store_true')
 parser.add_argument('--verbose', type=bool, default=True)
@@ -94,9 +95,8 @@ if __name__ == '__main__':
     n_trials = args.n_trials
     keys = ['standard_1NN',
             'standard_kNN',
-            'split_select1_1NN',
-            'split_select0_1NN',
-            ]
+            'split_select_1NN',
+            'split_1NN']
     error_rates = defaultdict(partial(np.zeros, n_trials))
     elapsed_times = defaultdict(partial(np.zeros, n_trials))
     model_selection_times = defaultdict(partial(np.zeros, n_trials))
@@ -104,7 +104,8 @@ if __name__ == '__main__':
 
     validation_profiles = dict(
         standard_kNN={n: None for n in range(n_trials)},
-        Msplit_1NN={n: None for n in range(n_trials)},
+        split_select_1NN={n: None for n in range(n_trials)},
+        split_1NN={n: None for n in range(n_trials)},
     )
 
     for n in range(n_trials):
@@ -157,59 +158,61 @@ if __name__ == '__main__':
                 print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
         # Split rules
+        split_keys = ['split_select_1NN', 'split_1NN']
+        select_ratios = [args.select_ratio, 1.0]
         with mp.get_context("spawn").Pool() as pool:
-            validation_profiles['Msplit_1NN'][n] = dict(n_splits=None, select_ratio=None)
-            n_splits_opt, \
-            validation_profiles['Msplit_1NN'][n]['n_splits'], \
-            select_ratio_opt, \
-            validation_profiles['Msplit_1NN'][n]['select_ratio'] \
-                = GridSearchForSplitSelectKNeighborsEstimator(
-                n_folds=args.n_folds,
-                n_repeat=1,
-                max_valid_size=args.max_test_size,
-                parallel=args.parallel,
-                verbose=args.verbose,
-                classification=dataset.classification,
-                onehot_encoder=dataset.onehot_encoder,
-                n_neighbors=args.n_neighbors,
-                pool=pool,
-            ).grid_search(
-                X_train,
-                y_train,
-                n_splits_max=k_max,
-                select_ratio=args.select_ratio,
-                search_select_ratio=True if dataset.onehot_encoder or args.search_select_ratio else False,
-            )
-            model_selection_time = timer() - start
-            print('\t\t{}-fold CV ({:.2f}s)'.format(
-                args.n_folds,
-                model_selection_time))
+            for (split_key, select_ratio) in zip(split_keys, select_ratios):
+                validation_profiles[split_key][n] = dict(n_splits=None, select_ratio=None)
+                n_splits_opt, validation_profiles[split_key][n]['n_splits'], \
+                select_ratio_opt, validation_profiles[split_key][n]['select_ratio'] \
+                    = GridSearchForSplitSelectKNeighborsEstimator(
+                    n_folds=args.n_folds,
+                    n_repeat=1,
+                    max_valid_size=args.max_test_size,
+                    parallel=args.parallel,
+                    verbose=args.verbose,
+                    classification=dataset.classification,
+                    onehot_encoder=dataset.onehot_encoder,
+                    n_neighbors=args.n_neighbors,
+                    pool=pool,
+                ).grid_search(
+                    X_train,
+                    y_train,
+                    n_splits_max=k_max,
+                    fine_search=args.fine_search,
+                    select_ratio=select_ratio,
+                    search_select_ratio=True if dataset.onehot_encoder or args.search_select_ratio else False,
+                )
+                model_selection_time = timer() - start
+                print('\t\t{}-fold CV ({:.2f}s)'.format(args.n_folds, model_selection_time))
 
-            start = timer()
-            estimator = SplitSelectKNeighborsRegressor(
-                n_neighbors=1,
-                n_splits=n_splits_opt,
-                select_ratio=select_ratio_opt,
-                n_select=None,
-                algorithm=args.algorithm,
-                verbose=False,
-                classification=dataset.classification,
-                onehot_encoder=dataset.onehot_encoder,
-                pool=pool,
-            ).fit(X_train, y_train)
+                start = timer()
+                estimator = SplitSelectKNeighborsRegressor(
+                    n_neighbors=1,
+                    n_splits=n_splits_opt,
+                    select_ratio=select_ratio_opt,
+                    n_select=None,
+                    algorithm=args.algorithm,
+                    verbose=False,
+                    classification=dataset.classification,
+                    onehot_encoder=dataset.onehot_encoder,
+                    pool=pool,
+                ).fit(X_train, y_train)
 
-            print('\t{} (M={}, kappa={:.2f}; {}): '.format(
-                'Msplit_1NN', n_splits_opt, select_ratio_opt if select_ratio_opt else -1,
-                estimator._fit_method,
-            ), end='')
-            y_test_pred = estimator.predict(X_test, parallel=args.parallel)
-            elapsed_time = timer() - start
-            for key in y_test_pred:
-                model_selection_times[key][n] = model_selection_time
-                best_params[key][n] = n_splits_opt
-                error_rates[key][n] = compute_error(y_test_pred[key], y_test, dataset.classification)
-                elapsed_times[key][n] = elapsed_time
-                print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
+                print('\t{} (M={}, kappa={:.2f}; {}): '.format(
+                    split_key,
+                    n_splits_opt,
+                    select_ratio_opt if select_ratio_opt else -1,
+                    estimator._fit_method,
+                ), end='')
+                y_test_pred = estimator.predict(X_test, parallel=args.parallel)
+                elapsed_time = timer() - start
+
+                model_selection_times[split_key][n] = model_selection_time
+                best_params[split_key][n] = n_splits_opt
+                error_rates[split_key][n] = compute_error(y_test_pred, y_test, dataset.classification)
+                elapsed_times[split_key][n] = elapsed_time
+                print("{:.4f} ({:.2f}s)".format(error_rates[split_key][n], elapsed_times[split_key][n]))
 
     # Store data (serialize)
     data = dict(keys=keys,

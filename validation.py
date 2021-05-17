@@ -117,7 +117,7 @@ class GridSearchForSplitSelectKNeighborsEstimator(GridSearchForKNeighborsEstimat
             onehot_encoder=self.onehot_encoder,
             pool=self.pool,
         ).fit(X_train, y_train)
-        y_pred = estimator.predict(X_valid, parallel=self.parallel)['split_select1_{}NN'.format(self.n_neighbors)]
+        y_pred = estimator.predict(X_valid, parallel=self.parallel)
         error = compute_error(y_valid, y_pred, self.classification)
         return error
 

@@ -188,9 +188,7 @@ class SplitSelectKNeighborsRegressor(SplitSelectKNeighbors):
         local_estimates, knn_distances = self.local_predict(X, parallel=parallel)  # (n_samples, n_queries)
 
         # 2) Global aggregation
-        final_estimates = dict()
         start = timer()
-        final_estimates['split_select0_{}NN'.format(self.n_neighbors)] = local_estimates.mean(axis=0)  # (n_queries,)
 
         if self.n_select < self.n_splits:
             # Note: knn_distances.shape = (n_splits, n_queries)
@@ -198,28 +196,20 @@ class SplitSelectKNeighborsRegressor(SplitSelectKNeighbors):
             selected_indices = selected_indices[:self.n_select, :]  # (n_selected, n_queries); takes O(n_splits)
             if self.verbose:
                 print("\tPick L={} out of M={}: {:.4f}s".format(self.n_select, self.n_splits, timer() - start))
-            final_estimates['split_select1_{}NN'.format(self.n_neighbors)] = \
-                local_estimates[
-                    selected_indices,
-                    np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_select, axis=0)
-                ].mean(axis=0)  # (n_queries)
+            final_estimate = local_estimates[
+                selected_indices,
+                np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_select, axis=0)
+            ].mean(axis=0)  # (n_queries)
         else:
-            final_estimates['split_select1_{}NN'.format(self.n_neighbors)] = \
-                final_estimates['split_select0_{}NN'.format(self.n_neighbors)]
-
-        # print("Select and compute mean: {:.4f}s".format(elapsed_time, timer() - start))  # For debugging
-        # final_estimates['soft0_select1'.format(self.n_neighbors)] = \
-        #     (local_estimates > 0.5)[
-        #     selected_indices,
-        #     np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_select, axis=0)
-        # ].mean(axis=0)  # (n_queries)
-        # final_estimates['soft0_select0'.format(self.n_neighbors)] = (local_estimates > 0.5).mean(axis=0)  # (n_queries,)
+            final_estimate = local_estimates.mean(axis=0)  # (n_queries,)
 
         if self.is_classifier:
-            for key in final_estimates:
-                final_estimates[key] = self.onehot_encoder.inverse_transform(final_estimates[key]).reshape((-1,)) if self.multilabel_classification else final_estimates[key] > .5
+            if self.multilabel_classification:
+                final_estimate = self.onehot_encoder.inverse_transform(final_estimate).reshape((-1,))
+            else:
+                final_estimate = (final_estimate > .5)
 
-        return final_estimates
+        return final_estimate
 
 
 # for multiprocessing
