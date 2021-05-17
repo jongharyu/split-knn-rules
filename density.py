@@ -6,7 +6,7 @@ from sklearn.neighbors._base import _check_weights, NeighborsBase, KNeighborsMix
 from sklearn.utils import check_array
 from sklearn.utils.validation import _deprecate_positional_args, check_is_fitted
 
-from regressor import SplitKNeighbors
+from regressor import SplitSelectKNeighbors
 
 
 def find_unit_volume(d, p=2):
@@ -270,7 +270,7 @@ class KNeighborsDensity(NeighborsBase, KNeighborsMixin, UnsupervisedMixin):
         raise NotImplementedError
 
 
-class SplitKNeighborDensity(SplitKNeighbors):
+class SplitKNeighborDensity(SplitSelectKNeighbors):
     def __init__(self, **kwargs):
         # algorithm: one of {'auto', 'ball_tree', 'kd_tree', 'brute'}
         super().__init__(**kwargs)

@@ -1,10 +1,10 @@
-from os import getpid
 from timeit import default_timer as timer
 
 import numpy as np
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neighbors._base import _get_weights
 from sklearn.utils import check_array
+
 
 class ExtendedKNeighborsRegressor(KNeighborsRegressor):
     """
@@ -63,7 +63,7 @@ class ExtendedKNeighborsRegressor(KNeighborsRegressor):
         return y_pred, neigh_dist[:, -1]  # return the k-th NN distances
 
 
-class SplitKNeighbors:
+class SplitSelectKNeighbors:
     def __init__(self, n_neighbors=5,
                  weights='uniform', algorithm='auto', leaf_size=30,
                  p=2, metric='minkowski', metric_params=None,
@@ -93,7 +93,7 @@ class SplitKNeighbors:
             # If n_select is not specified (None), use the default parameter from theoretical guarantee
             n_select = int(np.ceil(self.n_splits * self.select_ratio))  # number of estimates to be selected
             n_select = min([max([n_select, 1]), n_splits - 1])  # CRUCIAL! Otherwise, argpartition raises an unknown error
-        # If n_select is specified, n_splits is ignored
+        # If n_select is specified, select_ratio is ignored
         self.n_select = n_select
 
         self.is_classifier = classification
@@ -171,7 +171,7 @@ class SplitKNeighbors:
         return [np.array_split(x, n_splits) for x in data]
 
 
-class SplitSelectKNeighborsRegressor(SplitKNeighbors):
+class SplitSelectKNeighborsRegressor(SplitSelectKNeighbors):
     def __init__(self, thresholding=False, **kwargs):
         super().__init__(**kwargs)
         self.thresholding = thresholding  # if True, take thresholding after each local estimates

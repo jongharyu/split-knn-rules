@@ -55,7 +55,7 @@ class GridSearchForKNeighborsEstimator:
 
         return np.mean(errors)
 
-    def grid_search(self, X, y, k_max=None, fine_search=False):
+    def grid_search(self, X, y, k_max=None, fine_search=False, **kwargs):
         # search for an optimal k
         if not k_max:
             k_max = X.shape[0]
@@ -71,7 +71,7 @@ class GridSearchForKNeighborsEstimator:
             k_set.append(k)
             if self.verbose:
                 print(k, end=' ')
-            err = self.cross_validate(X, y, k)
+            err = self.cross_validate(X, y, k, **kwargs)
             k_err.append(err)
             k = 2 * (k + 1) - 1
         k_opt_rough = k_set[np.argmin(k_err)]
@@ -121,10 +121,10 @@ class GridSearchForSplitSelectKNeighborsEstimator(GridSearchForKNeighborsEstimat
         error = compute_error(y_valid, y_pred, self.classification)
         return error
 
-    def grid_search(self, X, y, n_splits_max=None, fine_search=False, search_select_ratio=False):
+    def grid_search(self, X, y, n_splits_max=None, fine_search=False, select_ratio=None, search_select_ratio=False):
         # search for an optimal k (and optionally an optimal select ratio)
-        n_splits_opt, n_splits_profile = super().grid_search(X, y, n_splits_max, fine_search)
-        select_ratio_opt = None
+        n_splits_opt, n_splits_profile = super().grid_search(X, y, n_splits_max, fine_search, select_ratio=select_ratio)
+        select_ratio_opt = select_ratio
         select_ratio_profile = None
         if search_select_ratio:
             if self.verbose:

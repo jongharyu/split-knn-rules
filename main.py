@@ -4,30 +4,28 @@
 import argparse
 import datetime
 import multiprocessing as mp
-import numpy as np
 import pickle
 import pprint as pp
 import sys
 from collections import defaultdict
 from functools import partial
 from pathlib import Path
-from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from tempfile import mkdtemp
 from timeit import default_timer as timer
 
 import cpuinfo
 import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
 import datasets
 from regressor import SplitSelectKNeighborsRegressor
-from validation import compute_error
 from utils import str2bool, Logger
 from validation import GridSearchForKNeighborsEstimator, GridSearchForSplitSelectKNeighborsEstimator
-
+from validation import compute_error
 
 # mpl.style.use( 'ggplot' )
 markers = ['o', 's', '*', 'v', '^', 'D', 'h', 'x', '+', '8', 'p', '<', '>', 'd', 'H', 1, 2, 3, 4]
-
 
 # Arguments
 parser = argparse.ArgumentParser(description='Split knn rules')
@@ -40,6 +38,7 @@ parser.add_argument('--algorithm', type=str, default='auto',
                     help='knn search algorithm (default: "auto")',
                     choices=['auto', 'ball_tree', 'kd_tree', 'brute'])
 parser.add_argument('--n-neighbors', type=int, default=1)
+parser.add_argument('--select-ratio', type=float, default=None)
 parser.add_argument('--search-select-ratio', action='store_true')
 parser.add_argument('--no-standard', action='store_false')
 parser.add_argument('--parallel', type=str2bool, default=False, metavar='P',
@@ -62,7 +61,6 @@ parser.add_argument('--k-max', type=int, default=1024)
 parser.add_argument('--n-folds', type=int, default=5)
 parser.add_argument('--temp', action='store_true')
 parser.add_argument('--verbose', type=bool, default=True)
-
 
 if __name__ == '__main__':
     mp.set_start_method("spawn")
@@ -161,8 +159,10 @@ if __name__ == '__main__':
         # Split rules
         with mp.get_context("spawn").Pool() as pool:
             validation_profiles['Msplit_1NN'][n] = dict(n_splits=None, select_ratio=None)
-            n_splits_opt, validation_profiles['Msplit_1NN'][n]['n_splits'], \
-            select_ratio_opt, validation_profiles['Msplit_1NN'][n]['select_ratio'] \
+            n_splits_opt, \
+            validation_profiles['Msplit_1NN'][n]['n_splits'], \
+            select_ratio_opt, \
+            validation_profiles['Msplit_1NN'][n]['select_ratio'] \
                 = GridSearchForSplitSelectKNeighborsEstimator(
                 n_folds=args.n_folds,
                 n_repeat=1,
@@ -177,6 +177,7 @@ if __name__ == '__main__':
                 X_train,
                 y_train,
                 n_splits_max=k_max,
+                select_ratio=args.select_ratio,
                 search_select_ratio=True if dataset.onehot_encoder or args.search_select_ratio else False,
             )
             model_selection_time = timer() - start
@@ -189,6 +190,7 @@ if __name__ == '__main__':
                 n_neighbors=1,
                 n_splits=n_splits_opt,
                 select_ratio=select_ratio_opt,
+                n_select=None,
                 algorithm=args.algorithm,
                 verbose=False,
                 classification=dataset.classification,
@@ -207,7 +209,7 @@ if __name__ == '__main__':
                 best_params[key][n] = n_splits_opt
                 error_rates[key][n] = compute_error(y_test_pred[key], y_test, dataset.classification)
                 elapsed_times[key][n] = elapsed_time
-            print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
+                print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
 
     # Store data (serialize)
     data = dict(keys=keys,
