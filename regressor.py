@@ -90,9 +90,11 @@ class SplitSelectKNeighbors:
         self.n_splits = n_splits
         self.select_ratio = 1 - np.exp(- self.n_neighbors / 4) if not select_ratio else select_ratio
         if not n_select:
-            # If n_select is not specified (None), use the default parameter from theoretical guarantee
-            n_select = int(np.ceil(self.n_splits * self.select_ratio))  # number of estimates to be selected
-            n_select = min([max([n_select, 1]), n_splits - 1])  # CRUCIAL! Otherwise, argpartition raises an unknown error
+            n_select = n_splits
+            if self.select_ratio < 1:
+                # If n_select is not specified (None), use the default parameter from theoretical guarantee
+                n_select = int(np.ceil(self.n_splits * self.select_ratio))  # number of estimates to be selected
+                n_select = min([max([n_select, 1]), n_splits - 1])  # CRUCIAL! Otherwise, argpartition raises an unknown error
         # If n_select is specified, select_ratio is ignored
         self.n_select = n_select
 
@@ -186,22 +188,25 @@ class SplitSelectKNeighborsRegressor(SplitSelectKNeighbors):
         local_estimates, knn_distances = self.local_predict(X, parallel=parallel)  # (n_samples, n_queries)
 
         # 2) Global aggregation
-        # Note that knn_distances.shape = (n_splits, n_queries)
-        start = timer()
-        selected_indices = np.argpartition(knn_distances, self.n_select, axis=0)
-        selected_indices = selected_indices[:self.n_select, :]  # (n_selected, n_queries); takes O(n_splits)
-        if self.verbose:
-            print("\tPick L={} out of M={}: {:.4f}s".format(self.n_select, self.n_splits, timer() - start))
-
         final_estimates = dict()
-        # start = timer()
-        final_estimates['split_select1_{}NN'.format(self.n_neighbors)] = \
-            local_estimates[
-            selected_indices,
-            np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_select, axis=0)
-        ].mean(axis=0)  # (n_queries)
-        final_estimates['split_select0_{}NN'.format(self.n_neighbors)] = \
-            local_estimates.mean(axis=0)  # (n_queries,)
+        start = timer()
+        final_estimates['split_select0_{}NN'.format(self.n_neighbors)] = local_estimates.mean(axis=0)  # (n_queries,)
+
+        if self.n_select < self.n_splits:
+            # Note: knn_distances.shape = (n_splits, n_queries)
+            selected_indices = np.argpartition(knn_distances, self.n_select, axis=0)
+            selected_indices = selected_indices[:self.n_select, :]  # (n_selected, n_queries); takes O(n_splits)
+            if self.verbose:
+                print("\tPick L={} out of M={}: {:.4f}s".format(self.n_select, self.n_splits, timer() - start))
+            final_estimates['split_select1_{}NN'.format(self.n_neighbors)] = \
+                local_estimates[
+                    selected_indices,
+                    np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_select, axis=0)
+                ].mean(axis=0)  # (n_queries)
+        else:
+            final_estimates['split_select1_{}NN'.format(self.n_neighbors)] = \
+                final_estimates['split_select0_{}NN'.format(self.n_neighbors)]
+
         # print("Select and compute mean: {:.4f}s".format(elapsed_time, timer() - start))  # For debugging
         # final_estimates['soft0_select1'.format(self.n_neighbors)] = \
         #     (local_estimates > 0.5)[
