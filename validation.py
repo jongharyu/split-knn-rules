@@ -61,7 +61,7 @@ class GridSearchForKNeighborsEstimator:
             k_max = X.shape[0]
 
         if self.verbose:
-            print("\t\tValidating (max={}): ".format(int(k_max)), end='')
+            print("....Validating (max={}): ".format(int(k_max)), end='')
 
         # 1) coarse search: find best k in [3, 7, 15, 31,...]
         k_set = []

@@ -28,11 +28,14 @@ class Dataset:
 
     def train_test_split(self, test_size=0.4, seed=0):
         X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=test_size, random_state=seed)
+
         mu_train = X_train.mean(axis=0, keepdims=True)
         sigma_train = X_train.std(axis=0, keepdims=True)
         sigma_train[sigma_train == 0] = 1
+
         X_train = (X_train - mu_train) / sigma_train
         X_test = (X_test - mu_train) / sigma_train
+
         return X_train, X_test, y_train, y_test
 
 
@@ -159,7 +162,14 @@ class MiniBooNE(Dataset):
         X_train, y_train = mb.x_y_split(df=train, y_col='target')
         X_test, y_test = mb.x_y_split(df=test, y_col='target')
 
-        X_train, y_train, X_test, y_test = np.array(X_train), np.array(y_train), np.array(X_test), np.array(y_test)
+        X_train, X_test, y_train, y_test = np.array(X_train), np.array(X_test), np.array(y_train), np.array(y_test)
+
+        mu_train = X_train.mean(axis=0, keepdims=True)
+        sigma_train = X_train.std(axis=0, keepdims=True)
+        sigma_train[sigma_train == 0] = 1
+
+        X_train = (X_train - mu_train) / sigma_train
+        X_test = (X_test - mu_train) / sigma_train
 
         return X_train, X_test, y_train, y_test
 

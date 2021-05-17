@@ -141,7 +141,7 @@ if __name__ == '__main__':
                             fine_search=args.fine_search,
                             k_max=k_max)
                     model_selection_time = timer() - start
-                    print('\t\t{}-fold CV ({:.2f}s)'.format(
+                    print('....{}-fold CV ({:.2f}s)'.format(
                         args.n_folds,
                         model_selection_time))
                 best_params[key] = k_opt
@@ -188,7 +188,7 @@ if __name__ == '__main__':
                     search_select_ratio=True if dataset.onehot_encoder or args.search_select_ratio else False,
                 )
                 model_selection_time = timer() - start
-                print('\t\t{}-fold CV ({:.2f}s)'.format(args.n_folds, model_selection_time))
+                print('....{}-fold CV ({:.2f}s)'.format(args.n_folds, model_selection_time))
 
                 start = timer()
                 estimator = SplitSelectKNeighborsRegressor(
@@ -234,8 +234,8 @@ if __name__ == '__main__':
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Plot validation profiles
-    colors = ['red', 'blue']
-    for i, key in enumerate(['standard_kNN', 'Msplit_1NN']):
+    colors = ['red', 'blue', 'green']
+    for i, key in enumerate(['standard_kNN', 'split_select_1NN', 'split_1NN']):
         if key == 'standard_kNN':
             param_set = validation_profiles[key][0][0]
         else:
@@ -264,11 +264,11 @@ if __name__ == '__main__':
     plt.savefig('{}/validation_profile.pdf'.format(run_path))
     plt.close()
 
-    if validation_profiles['Msplit_1NN'][0]['select_ratio'] is not None:
-        param_set = validation_profiles['Msplit_1NN'][0]['select_ratio'][0]
+    if validation_profiles['split_select_1NN'][0]['select_ratio'] is not None:
+        param_set = validation_profiles['split_select_1NN'][0]['select_ratio'][0]
         errs = np.zeros((n_trials, len(param_set)))
         for n in range(n_trials):
-            errs[n] = validation_profiles['Msplit_1NN'][n]['select_ratio'][1]
+            errs[n] = validation_profiles['split_select_1NN'][n]['select_ratio'][1]
         plt.plot(param_set,
                  errs.mean(axis=0),
                  linewidth=1,
