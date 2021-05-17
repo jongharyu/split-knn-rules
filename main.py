@@ -135,7 +135,11 @@ if __name__ == '__main__':
                             max_valid_size=args.max_test_size,
                             verbose=args.verbose,
                             classification=dataset.classification,
-                        ).grid_search(X_train, y_train, k_max=k_max)
+                        ).grid_search(
+                            X_train,
+                            y_train,
+                            fine_search=args.fine_search,
+                            k_max=k_max)
                     model_selection_time = timer() - start
                     print('\t\t{}-fold CV ({:.2f}s)'.format(
                         args.n_folds,
