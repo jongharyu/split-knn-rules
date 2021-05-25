@@ -185,7 +185,7 @@ if __name__ == '__main__':
                     n_splits_max=k_max,
                     fine_search=args.fine_search,
                     select_ratio=select_ratio,
-                    search_select_ratio=True if dataset.onehot_encoder or args.search_select_ratio else False,
+                    search_select_ratio=True if (args.search_select_ratio and select_ratio < 1) else False,
                 )
                 model_selection_time = timer() - start
                 print('....{}-fold CV ({:.2f}s)'.format(args.n_folds, model_selection_time))
