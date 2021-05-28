@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
+import pickle
 from collections import defaultdict
 from functools import partial
+from timeit import default_timer as timer
 
 import numpy as np
-import pickle
 from sklearn.neighbors import KNeighborsClassifier
-from timeit import default_timer as timer
 
 from datasets import MixtureOfTwoGaussians
 from regressor import SplitSelectKNeighborsRegressor
 from validation import compute_error
-from utils import generate_keys
 
 # Experiment 1. Simulation with mixture of Gaussians
 k0 = 10
@@ -22,7 +21,7 @@ prior = .5  # prior probability for class 0
 
 n_test = 10000
 n_trials = 10
-n_samples_list = [500, 2500, 12500, 62500]
+n_samples_list = [500, 2500, 12500, 62500, 312500]
 
 base_k = [1, 3]
 
@@ -62,27 +61,32 @@ for sigma in sigmas:
 
             # 2) Split rules
             for n_neighbors in base_k:
+                split_keys = ['split_select_{}NN'.format(n_neighbors),
+                              'split_{}NN'.format(n_neighbors)]
+                select_ratios = [0.5, 1.0]
+                for (split_key, select_ratio) in zip(split_keys, select_ratios):
+                    # with mp.get_context("spawn").Pool() as pool:
+                    n_splits = k_standard
+                    start = timer()
+                    regressor = SplitSelectKNeighborsRegressor(
+                        n_neighbors=n_neighbors,
+                        n_splits=n_splits,
+                        select_ratio=select_ratio,
+                        n_select=None,
+                        algorithm='auto',
+                        verbose=False,
+                        classification=True,
+                        pool=None,
+                    ).fit(X_train, y_train)
+                    print('\t{} (M={}; kappa={}): '.format(split_key, n_splits, select_ratio), end='')
+                    y_test_pred = regressor.predict(X_test, parallel=False)
+                    elapsed_time = timer() - start
+                    elapsed_times[split_key][i, n] = elapsed_time
+                    error_rates[split_key][i, n] = compute_error(y_test_pred, y_test)
 
-                n_splits = np.min([5 * k_standard, np.sqrt(n_samples)]).astype(int)
-                keys = generate_keys([n_neighbors])
-                start = timer()
-                regressor = SplitSelectKNeighborsRegressor(n_neighbors=n_neighbors,
-                                                           n_splits=n_splits,
-                                                           select_ratio=None,
-                                                           algorithm='auto',
-                                                           verbose=False).fit(X_train, y_train)
-                print('\t{} (M={}): '.format(keys[0], n_splits), end='')
-                y_test_pred = regressor.predict(X_test, parallel=False)
-                elapsed_time = timer() - start
-                for key in keys:
-                    y_test_pred[key] = y_test_pred[key] > .5
-                    elapsed_times[key][i, n] = elapsed_time
-                    error_rates[key][i, n] = compute_error(y_test_pred[key], y_test)
-
-                print("\t\t{:.4f}, {:.4f} ({:.2f}s)".format(
-                    error_rates[keys[0]][i, n],
-                    error_rates[keys[1]][i, n],
-                    elapsed_times[keys[0]][i, n]))
+                    print("\t\t{:.4f} ({:.2f}s)".format(
+                        error_rates[split_key][i, n],
+                        elapsed_times[split_key][i, n]))
         else:
             print("\nN={}; Average error rates".format(n_samples))
             for key in error_rates:
@@ -96,5 +100,5 @@ for sigma in sigmas:
     data = dict(keys=keys, elapsed_times=elapsed_times, error_rates=error_rates, bayes_error=bayes_error)
 
     # Store data (serialize)
-    with open('mog_d{}_p{}_sigma{}.pickle'.format(d, prior, sigma), 'wb') as handle:
+    with open('results/mog/mog_d{}_p{}_sigma{}.pickle'.format(d, prior, sigma), 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
