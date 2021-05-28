@@ -1,7 +1,4 @@
-# Love Thy Next-Door Neighbor: Minimax Optimal Regression and Classification Based on the 1-Nearest Neighbor Search
-
-![Split k-NN rules](img/split_knn.png)
-
+# One-Nearest-Neighbor Search is All You Need for Minimax Optimal Regression and Classification
 
 ## Requirements
 The experiments were run under the following environment:
@@ -31,3 +28,6 @@ python main.py --parallel True --test-size 0.05 --n-folds 10 --n-trials 10 --alg
 
 ## To be implemented
 - Support node-level parallel computation.
+
+## Credit
+- A cross validation code snippet was adapted from that of this [repository](https://github.com/lirongx/SubNN). 
