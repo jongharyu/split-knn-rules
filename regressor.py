@@ -73,6 +73,7 @@ class SplitSelectKNeighbors:
                  verbose=True,
                  onehot_encoder=None,
                  classification=False,
+                 density=False,
                  pool=None,
                  **kwargs, ):
         # algorithm: one of {'auto', 'ball_tree', 'kd_tree', 'brute'}
@@ -99,6 +100,7 @@ class SplitSelectKNeighbors:
         self.n_select = n_select
 
         self.is_classifier = classification
+        self.is_density_estimator = density
         self.onehot_encoder = onehot_encoder  # in case of multilabel classification
         self.verbose =verbose
         self.target_dim = None
@@ -121,7 +123,9 @@ class SplitSelectKNeighbors:
     def fit(self, *data_train):
         # TODO: check if classifier.predict_proba is equivalent to regressor.predict for default cases
         data_train = list(data_train)
-        if self.multilabel_classification:
+        if self.is_density_estimator:
+            self.target_dim = 1
+        elif self.multilabel_classification:
             data_train[1] = self.onehot_encoder.transform(data_train[1].reshape((-1, 1))).toarray()
             self.target_dim = data_train[1].shape[1]
         elif len(data_train[1].shape) == 1:

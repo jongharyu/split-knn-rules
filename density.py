@@ -1,12 +1,22 @@
-from timeit import default_timer as timer
-
 import numpy as np
-from scipy.special import gamma, logsumexp
-from sklearn.neighbors._base import _check_weights, NeighborsBase, KNeighborsMixin, UnsupervisedMixin
+from scipy.special import digamma, loggamma, gamma, logsumexp
+from sklearn.neighbors._base import _check_weights, NeighborsBase, KNeighborsMixin
 from sklearn.utils import check_array
 from sklearn.utils.validation import _deprecate_positional_args, check_is_fitted
 
 from regressor import SplitSelectKNeighbors
+
+
+class UnsupervisedMixin:
+    def fit(self, X, y=None):
+        """Fit the model using X as training data
+        Parameters
+        ----------
+        X : {array-like, sparse matrix, BallTree, KDTree}
+            Training data. If array or matrix, shape [n_samples, n_features],
+            or [n_samples, n_samples] if metric='precomputed'.
+        """
+        return self._fit(X)
 
 
 def find_unit_volume(d, p=2):
@@ -178,20 +188,24 @@ class KNeighborsDensity(NeighborsBase, KNeighborsMixin, UnsupervisedMixin):
         assert max(k) + k_shift <= self.n_neighbors
 
         # Find k-NN distances
-        neigh_dist, neigh_ind = self.kneighbors(X)
-        neigh_dist = neigh_dist[:, k_shift:]
-        neigh_dist = neigh_dist[:, k - 1]
+        neigh_dist, neigh_ind = self.kneighbors(X, n_neighbors=max(k) + 1)  # +1 to handle the zero distance
+        kth_neigh_dist = neigh_dist[:, k_shift:]
+        kth_neigh_dist = kth_neigh_dist[:, k - 1]
+        if k_shift == 0:
+            # to handle zero distance case
+            zero_indices = (kth_neigh_dist == 0)[:, 0]
+            kth_neigh_dist[zero_indices, :] = neigh_dist[zero_indices, k][:, np.newaxis]
 
         # Compute normalized volumes
-        log_U = np.log(self.n_samples_fit_ - k_shift) \
+        log_U = np.log(self.n_samples_fit_) \
                 + np.log(self.unit_vol) \
-                + self.d * np.log(neigh_dist)  # (n_samples, n_k)
+                + self.d * np.log(kth_neigh_dist)  # (n_samples, n_k)
 
         if len(k) == 1:
             log_U = log_U.squeeze(-1)
-            neigh_dist = neigh_dist.squeeze(-1)
+            kth_neigh_dist = kth_neigh_dist.squeeze(-1)
 
-        return log_U, neigh_dist
+        return log_U, kth_neigh_dist
 
     def score_samples(self, X=None, k=None):
         """Evaluate the log density model on the data.
@@ -270,19 +284,17 @@ class KNeighborsDensity(NeighborsBase, KNeighborsMixin, UnsupervisedMixin):
         raise NotImplementedError
 
 
-class SplitKNeighborDensity(SplitSelectKNeighbors):
+class SplitKNeighborsDensity(SplitSelectKNeighbors):
     def __init__(self, **kwargs):
-        # algorithm: one of {'auto', 'ball_tree', 'kd_tree', 'brute'}
-        super().__init__(**kwargs)
+        super().__init__(density=True, **kwargs)
         self.local_models = []
         self.base_model = KNeighborsDensity
 
     def score_samples(self, *args, **kwargs):
         return self.predict(*args, **kwargs)
 
-    def predict(self, X, k=None, parallel=False):
+    def predict(self, X, k=None, parallel=False, alphas=(1, -1), betas=(1,)):
         # X: np.array; (n_queries, n_features)
-        n_queries = X.shape[0]
         if k is None:
             k = np.array([self.n_neighbors])
         else:
@@ -290,26 +302,45 @@ class SplitKNeighborDensity(SplitSelectKNeighbors):
             assert max(k) <= self.n_neighbors
 
         # Local operations
-        local_log_volumes, knn_distances = self.local_predict(X, k, parallel)  # (n_samples, n_queries, n_k)
+        local_log_volumes, _ = self.local_predict(X, parallel=parallel)  # (n_samples, n_queries, n_k)
 
         # Global aggregation
         # Note that knn_distances.shape = (n_samples, n_queries, n_k)
-        start = timer()
-        selected_indices = np.argpartition(knn_distances, self.n_select, axis=0)[:self.n_select, :]  # (n_selected, n_queries); takes O(n_splits)
-        print("\tFind L distances: {:.4f}s".format(timer() - start))
+        log_densities = dict()  # each entry has shape (n_k, n_queries)
+        local_logsum_volumes = logsumexp(local_log_volumes, axis=0)
 
-        selected_log_volumes = local_log_volumes[
-            selected_indices,
-            np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_select, axis=0)
-        ]  # (self.n_select, n_queries, n_k)
+        # type 1: average of \phi_k(U_m)'s over m\in[M]
+        # type 2: \phi_{kM}(sum of U_m's)
 
-        final_estimates = dict()  # each entry has shape (n_k, n_queries)
-        final_estimates['agg_selective1'] = np.log(k * self.n_select - 1) - logsumexp(selected_log_volumes, axis=0)
-        final_estimates['mean_selective1'] = ((np.log(k - 1) - selected_log_volumes).mean(0))
-        final_estimates['agg_selective0'] = np.log(k * self.n_splits - 1) - logsumexp(local_log_volumes, axis=0)
-        final_estimates['mean_selective0'] = ((np.log(k - 1) - local_log_volumes).mean(0))
+        log_densities['type1_log'] = - np.mean(local_log_volumes, axis=0) + digamma(k)
+        log_densities['type2_log'] = - local_logsum_volumes + digamma(k * self.n_splits)
 
-        return final_estimates
+        for alpha in alphas:
+            if alpha == 1:
+                continue
+
+            log_densities['type1_poly_{}'.format(alpha)] = \
+                -np.inf * np.ones(local_log_volumes.shape[1]) if k <= alpha else \
+                    (loggamma(k) - loggamma(k - alpha) +
+                     logsumexp((- alpha) * local_log_volumes, axis=0) - np.log(self.n_splits)) / alpha
+
+            log_densities['type2_poly_{}'.format(alpha)] = \
+                -np.inf * np.ones(local_log_volumes.shape[1]) if k * self.n_splits <= alpha else \
+                    (loggamma(k * self.n_splits) - loggamma(k * self.n_splits - alpha) +
+                     (- alpha) * local_logsum_volumes) / alpha
+
+        for beta in betas:
+            log_densities['type1_exp_{}'.format(beta)] = \
+                np.log(
+                    ((1 - beta / np.exp(local_log_volumes)) ** (k - 1) *
+                     (local_log_volumes >= (np.log(beta) if beta > 0 else -np.inf))).mean(axis=0)) / (-beta)
+
+            log_densities['type2_exp_{}'.format(beta)] = \
+                np.log(
+                    ((1 - beta / np.exp(local_logsum_volumes)) ** (k * self.n_splits - 1) *
+                     (local_logsum_volumes >= (np.log(beta) if beta > 0 else -np.inf)))) / (-beta)
+
+        return log_densities
 
 
 # for multiprocessing

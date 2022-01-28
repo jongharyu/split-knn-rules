@@ -98,7 +98,8 @@ if __name__ == '__main__':
             'split_select_1NN',
             'split_1NN']
     error_rates = defaultdict(partial(np.zeros, n_trials))
-    elapsed_times = defaultdict(partial(np.zeros, n_trials))
+    train_times = defaultdict(partial(np.zeros, n_trials))
+    test_times = defaultdict(partial(np.zeros, n_trials))
     model_selection_times = defaultdict(partial(np.zeros, n_trials))
     best_params = defaultdict(partial(np.zeros, n_trials))
 
@@ -152,14 +153,19 @@ if __name__ == '__main__':
                                       n_jobs=-1 if args.parallel else None,
                                       algorithm=args.algorithm)
                 predictor.fit(X_train, y_train)
+                train_times[key][n] = timer() - start
+                start = timer()
                 print('\t{} (k={}; {}): '.format(
                     key, k_opt, predictor._fit_method
                 ), end='')
                 y_test_pred = predictor.predict(X_test)
-                elapsed_times[key][n] = timer() - start
+                test_times[key][n] = timer() - start
                 error_rates[key][n] = compute_error(y_test_pred, y_test, dataset.classification)
 
-                print("{:.4f} ({:.2f}s)".format(error_rates[key][n], elapsed_times[key][n]))
+                print("{:.4f} (tr: {:.2f}s, te: {:.2f}s)".format(
+                    error_rates[key][n],
+                    train_times[key][n],
+                    test_times[key][n]))
 
         # Split rules
         split_keys = ['split_select_1NN', 'split_1NN']
@@ -202,7 +208,9 @@ if __name__ == '__main__':
                     onehot_encoder=dataset.onehot_encoder,
                     pool=pool,
                 ).fit(X_train, y_train)
+                train_times[split_key][n] = timer() - start
 
+                start = timer()
                 print('\t{} (M={}, kappa={:.2f}; {}): '.format(
                     split_key,
                     n_splits_opt,
@@ -210,17 +218,21 @@ if __name__ == '__main__':
                     estimator._fit_method,
                 ), end='')
                 y_test_pred = estimator.predict(X_test, parallel=args.parallel)
-                elapsed_time = timer() - start
+                test_times[split_key][n] = timer() - start
 
                 model_selection_times[split_key][n] = model_selection_time
                 best_params[split_key][n] = n_splits_opt
                 error_rates[split_key][n] = compute_error(y_test_pred, y_test, dataset.classification)
-                elapsed_times[split_key][n] = elapsed_time
-                print("{:.4f} ({:.2f}s)".format(error_rates[split_key][n], elapsed_times[split_key][n]))
+                print("{:.4f} (tr: {:.2f}s, te: {:.2f}s)".format(
+                    error_rates[split_key][n],
+                    train_times[split_key][n],
+                    test_times[split_key][n]))
 
     # Store data (serialize)
     data = dict(keys=keys,
-                elapsed_times=elapsed_times, error_rates=error_rates,
+                train_times=train_times,
+                test_times=test_times,
+                error_rates=error_rates,
                 model_selection_times=model_selection_times,
                 validation_profiles=validation_profiles,
                 cpu_info=cpuinfo.get_cpu_info(),
