@@ -1,5 +1,7 @@
 # One-Nearest-Neighbor Search is All You Need for Minimax Optimal Regression and Classification
 
+This is an accompanying code for the paper "One-Nearest-Neighbor Search is All You Need for Minimax Optimal Regression and Classification" ([arXiv:2202.02464](https://arxiv.org/abs/2202.02464)).
+
 ## Requirements
 The experiments were run under the following environment:
 ```text
@@ -29,5 +31,5 @@ python main.py --parallel True --test-size 0.05 --n-folds 10 --n-trials 10 --alg
 ## To be implemented
 - Support node-level parallel computation.
 
-## Credit
+## Acknowledgments
 - A cross validation code snippet was adapted from that of this [repository](https://github.com/lirongx/SubNN). 
