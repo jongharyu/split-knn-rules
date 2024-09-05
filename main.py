@@ -71,22 +71,22 @@ if __name__ == '__main__':
         print("Parallel processing...")
 
     timestamp = datetime.datetime.now().isoformat(timespec='seconds')
-    experiment_dir = Path('{}/results/{}/{}'.format(args.main_path, args.dataset, timestamp))
+    experiment_dir = Path(f'{args.main_path}/results/{args.dataset}/{timestamp}')
     experiment_dir.mkdir(parents=True, exist_ok=True)
     run_path = str(experiment_dir)
     if args.temp:
         run_path = mkdtemp(dir=run_path)
-    sys.stdout = Logger('{}/run.log'.format(run_path))
+    sys.stdout = Logger(f'{run_path}/run.log')
 
     # load datasets
     print("Loading data... ", end='')
     start = timer()
     dataset = getattr(datasets, args.dataset)(root=args.main_path)
-    print("done ({:.2f}s)".format(timer() - start))
+    print(f"done ({timer() - start:.2f}s)")
 
-    print('Path: {}'.format(run_path))
-    print('Time: {}'.format(timestamp))
-    print('Args: {}'.format(args))
+    print(f'Path: {run_path}')
+    print(f'Time: {timestamp}')
+    print(f'Args: {args}')
     info = cpuinfo.get_cpu_info()
     del info['flags']
     print('CPUInfo: ')
@@ -116,12 +116,12 @@ if __name__ == '__main__':
         # Truncate test set to limit time complexity of experiments
         X_test, y_test = X_test[:args.max_test_size], y_test[:args.max_test_size]
         if n == 0:
-            print("Data size: train={}, test={}".format(X_train.shape[0], X_test.shape[0]))
+            print(f"Data size: train={X_train.shape[0]}, test={X_test.shape[0]}")
 
         # set maximum k
         k_max = np.min([args.k_max, X_train.shape[0] / 25])
 
-        print("Trial #{}/{}".format(n + 1, n_trials))
+        print(f"Trial #{n + 1}/{n_trials}")
         # Standard k-NN rules
         if args.no_standard:
             for key in ['standard_1NN', 'standard_kNN']:
@@ -142,9 +142,7 @@ if __name__ == '__main__':
                             fine_search=args.fine_search,
                             k_max=k_max)
                     model_selection_time = timer() - start
-                    print('....{}-fold CV ({:.2f}s)'.format(
-                        args.n_folds,
-                        model_selection_time))
+                    print(f'....{args.n_folds}-fold CV ({model_selection_time:.2f}s)')
                 best_params[key] = k_opt
                 model_selection_times[key][n] = model_selection_time
                 start = timer()
@@ -155,17 +153,12 @@ if __name__ == '__main__':
                 predictor.fit(X_train, y_train)
                 train_times[key][n] = timer() - start
                 start = timer()
-                print('\t{} (k={}; {}): '.format(
-                    key, k_opt, predictor._fit_method
-                ), end='')
+                print(f'\t{key} (k={k_opt}; {predictor._fit_method}): ', end='')
                 y_test_pred = predictor.predict(X_test)
                 test_times[key][n] = timer() - start
                 error_rates[key][n] = compute_error(y_test_pred, y_test, dataset.classification)
 
-                print("{:.4f} (tr: {:.2f}s, te: {:.2f}s)".format(
-                    error_rates[key][n],
-                    train_times[key][n],
-                    test_times[key][n]))
+                print(f"{error_rates[key][n]:.4f} (tr: {train_times[key][n]:.2f}s, te: {test_times[key][n]:.2f}s)")
 
         # Split rules
         split_keys = ['split_select_1NN', 'split_1NN']
@@ -194,7 +187,7 @@ if __name__ == '__main__':
                     search_select_ratio=True if (args.search_select_ratio and select_ratio < 1) else False,
                 )
                 model_selection_time = timer() - start
-                print('....{}-fold CV ({:.2f}s)'.format(args.n_folds, model_selection_time))
+                print(f'....{args.n_folds}-fold CV ({model_selection_time:.2f}s)')
 
                 start = timer()
                 estimator = SplitSelectKNeighborsRegressor(
@@ -211,22 +204,14 @@ if __name__ == '__main__':
                 train_times[split_key][n] = timer() - start
 
                 start = timer()
-                print('\t{} (M={}, kappa={:.2f}; {}): '.format(
-                    split_key,
-                    n_splits_opt,
-                    select_ratio_opt if select_ratio_opt else -1,
-                    estimator._fit_method,
-                ), end='')
+                print(f'\t{split_key} (M={n_splits_opt}, kappa={select_ratio_opt if select_ratio_opt else -1:.2f}; {estimator._fit_method}): ', end='')
                 y_test_pred = estimator.predict(X_test, parallel=args.parallel)
                 test_times[split_key][n] = timer() - start
 
                 model_selection_times[split_key][n] = model_selection_time
                 best_params[split_key][n] = n_splits_opt
                 error_rates[split_key][n] = compute_error(y_test_pred, y_test, dataset.classification)
-                print("{:.4f} (tr: {:.2f}s, te: {:.2f}s)".format(
-                    error_rates[split_key][n],
-                    train_times[split_key][n],
-                    test_times[split_key][n]))
+                print(f"{error_rates[split_key][n]:.4f} (tr: {train_times[split_key][n]:.2f}s, te: {test_times[split_key][n]:.2f}s)")
 
     # Store data (serialize)
     data = dict(keys=keys,
@@ -237,11 +222,7 @@ if __name__ == '__main__':
                 validation_profiles=validation_profiles,
                 cpu_info=cpuinfo.get_cpu_info(),
                 args=args)
-    filename = '{}/{}_test{}_{}tr_{}cores_alg{}.pickle'.format(
-        run_path,
-        dataset.name, args.test_size, args.n_trials, mp.cpu_count(),
-        args.algorithm,
-    )
+    filename = f'{run_path}/{dataset.name}_test{args.test_size}_{args.n_trials}tr_{mp.cpu_count()}cores_alg{args.algorithm}.pickle'
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -271,9 +252,9 @@ if __name__ == '__main__':
                          alpha=0.3,
                          color=colors[i])
         plt.xscale('log', nonposx='clip')
-    plt.title('{} ({} runs)'.format(args.dataset, n_trials))
+    plt.title(f'{args.dataset} ({n_trials} runs)')
     plt.legend()
-    plt.savefig('{}/validation_profile.pdf'.format(run_path))
+    plt.savefig(f'{run_path}/validation_profile.pdf')
     plt.close()
 
     if validation_profiles['split_select_1NN'][0]['select_ratio'] is not None:
@@ -293,6 +274,6 @@ if __name__ == '__main__':
                          linewidth=0.1,
                          alpha=0.3,
                          color='blue')
-        plt.title('{} ({} runs)'.format(args.dataset, n_trials))
+        plt.title(f'{args.dataset} ({n_trials} runs)')
         plt.legend()
-        plt.savefig('{}/validation_profile_select_ratio.pdf'.format(run_path))
+        plt.savefig(f'{run_path}/validation_profile_select_ratio.pdf')

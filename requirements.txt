@@ -1,7 +1,6 @@
-python==3.8.1
-matplotlib==3.3.4
-numpy==1.20.0
-pandas==1.2.1
-py-cpuinfo==7.0.0
-scikit-learn==0.24.1
-scipy==1.6.0
+matplotlib
+numpy
+pandas
+py-cpuinfo
+scikit-learn
+scipy

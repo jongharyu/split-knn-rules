@@ -64,27 +64,36 @@ class ExtendedKNeighborsRegressor(KNeighborsRegressor):
 
 
 class SplitSelectKNeighbors:
-    def __init__(self, n_neighbors=5,
-                 weights='uniform', algorithm='auto', leaf_size=30,
-                 p=2, metric='minkowski', metric_params=None,
-                 n_splits=1,
-                 n_select=None,
-                 select_ratio=None,
-                 verbose=True,
-                 onehot_encoder=None,
-                 classification=False,
-                 density=False,
-                 pool=None,
-                 **kwargs, ):
+    def __init__(
+        self,
+        n_neighbors=5,
+        weights='uniform',
+        algorithm='auto',
+        leaf_size=30,
+        p=2,
+        metric='minkowski',
+        metric_params=None,
+        n_splits=1,
+        n_select=None,
+        select_ratio=None,
+        verbose=False,
+        onehot_encoder=None,
+        classification=False,
+        density=False,
+        pool=None,
+        **kwargs,
+    ):
         # algorithm: one of {'auto', 'ball_tree', 'kd_tree', 'brute'}
         self.n_neighbors = n_neighbors
-        self.base_kwargs = {'weights': weights,
-                            'algorithm': algorithm,
-                            'leaf_size': leaf_size,
-                            'p': p,
-                            'metric': metric,
-                            'metric_params': metric_params,
-                            **kwargs}
+        self.base_kwargs = {
+            'weights': weights,
+            'algorithm': algorithm,
+            'leaf_size': leaf_size,
+            'p': p,
+            'metric': metric,
+            'metric_params': metric_params,
+            **kwargs
+        }
 
         self._fit_method = None
         self.base_model = None
@@ -158,9 +167,7 @@ class SplitSelectKNeighbors:
             local_estimates, knn_distances = [np.array(l) for l in list(zip(*local_returns))]
         elapsed_time = timer() - start
         if self.verbose:
-            print("\n\tLocal kNN operations: {:.2f}s / {:.4f}s (per split)".format(
-                elapsed_time, elapsed_time / self.n_splits)
-            )
+            print(f"\n\tLocal kNN operations: {elapsed_time:.2f}s / {elapsed_time / self.n_splits:.4f}s (per split)")
         return local_estimates, knn_distances
 
     def predict(self, *args, **kwargs):
@@ -199,7 +206,7 @@ class SplitSelectKNeighborsRegressor(SplitSelectKNeighbors):
             selected_indices = np.argpartition(knn_distances, self.n_select, axis=0)
             selected_indices = selected_indices[:self.n_select, :]  # (n_selected, n_queries); takes O(n_splits)
             if self.verbose:
-                print("\tPick L={} out of M={}: {:.4f}s".format(self.n_select, self.n_splits, timer() - start))
+                print(f"\tPick L={self.n_select} out of M={self.n_splits}: {timer() - start:.4f}s")
             final_estimate = local_estimates[
                 selected_indices,
                 np.repeat(np.arange(n_queries).reshape(1, n_queries), self.n_select, axis=0)
