@@ -31,17 +31,16 @@ for sigma in sigmas:
     mog = MixtureOfTwoGaussians(prior=prior, sigma=sigma, d=d)
 
     bayes_error = mog.compute_bayes_error()
-    print("Bayes error: {}".format(bayes_error))
+    print(f"Bayes error: {bayes_error}")
 
-    keys = ['standard_{}NN'.format(k) for k in base_k] + \
-           ['standard_kNN']
+    keys = [f'standard_{k}NN' for k in base_k] + ['standard_kNN']
     error_rates = defaultdict(partial(np.zeros, (len(n_samples_list), n_trials)))
     elapsed_times = defaultdict(partial(np.zeros, (len(n_samples_list), n_trials)))
 
     # standard k-NN
     for i, n_samples in enumerate(n_samples_list):
         for n in range(n_trials):
-            print("N={} ({}/{})".format(n_samples, n + 1, n_trials))
+            print(f"N={n_samples} ({n + 1}/{n_trials})")
             X_train, y_train, X_test, y_test = mog.train_test_split(n_samples, n_test)
 
             # 1) Standard k-NN
@@ -49,20 +48,20 @@ for sigma in sigmas:
             k_standard = np.ceil(k_standard).astype(int)
 
             for kk, n_neighbors in enumerate(base_k + [k_standard]):
-                key = 'standard_{}NN'.format(n_neighbors if kk != len(base_k) else 'k')
+                key = f'standard_{n_neighbors if kk != len(base_k) else "k"}NN'
 
                 start = timer()
                 classifier = KNeighborsClassifier(n_neighbors=n_neighbors).fit(X_train, y_train)
-                print("\t{}: ".format(key), end="")  # classifier._fit_method
+                print(f"\t{key}: ", end="")  # classifier._fit_method
                 y_test_pred = classifier.predict(X_test)
                 elapsed_times[key][i, n] = timer() - start
                 error_rates[key][i, n] = compute_error(y_test_pred, y_test)
-                print("\t\t\t\t\t{:.4f} ({:.2f}s)".format(error_rates[key][i, n], elapsed_times[key][i, n]))
+                print(f"\t\t\t\t\t{error_rates[key][i, n]:.4f} ({elapsed_times[key][i, n]:.2f}s)")
 
             # 2) Split rules
             for n_neighbors in base_k:
-                split_keys = ['split_select_{}NN'.format(n_neighbors),
-                              'split_{}NN'.format(n_neighbors)]
+                split_keys = [f'split_select_{n_neighbors}NN',
+                              f'split_{n_neighbors}NN']
                 select_ratios = [0.5, 1.0]
                 for (split_key, select_ratio) in zip(split_keys, select_ratios):
                     # with mp.get_context("spawn").Pool() as pool:
@@ -78,19 +77,17 @@ for sigma in sigmas:
                         classification=True,
                         pool=None,
                     ).fit(X_train, y_train)
-                    print('\t{} (M={}; kappa={}): '.format(split_key, n_splits, select_ratio), end='')
+                    print(f'\t{split_key} (M={n_splits}; kappa={select_ratio}): ', end='')
                     y_test_pred = regressor.predict(X_test, parallel=False)
                     elapsed_time = timer() - start
                     elapsed_times[split_key][i, n] = elapsed_time
                     error_rates[split_key][i, n] = compute_error(y_test_pred, y_test)
 
-                    print("\t\t{:.4f} ({:.2f}s)".format(
-                        error_rates[split_key][i, n],
-                        elapsed_times[split_key][i, n]))
+                    print(f"\t\t{error_rates[split_key][i, n]:.4f} ({elapsed_times[split_key][i, n]:.2f}s)")
         else:
-            print("\nN={}; Average error rates".format(n_samples))
+            print(f"\nN={n_samples}; Average error rates")
             for key in error_rates:
-                print("\t{} = {:.4f} ({:.2f}s)".format(key, error_rates[key][i, :].mean(), elapsed_times[key][i, :].mean()))
+                print(f"\t{key} = {error_rates[key][i, :].mean():.4f} ({elapsed_times[key][i, :].mean():.2f}s)")
             else:
                 print('\n')
 
@@ -100,5 +97,5 @@ for sigma in sigmas:
     data = dict(keys=keys, elapsed_times=elapsed_times, error_rates=error_rates, bayes_error=bayes_error)
 
     # Store data (serialize)
-    with open('results/mog/mog_d{}_p{}_sigma{}.pickle'.format(d, prior, sigma), 'wb') as handle:
+    with open(f'results/mog/mog_d{d}_p{prior}_sigma{sigma}.pickle', 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)

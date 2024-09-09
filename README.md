@@ -1,33 +1,30 @@
-# One-Nearest-Neighbor Search is All You Need for Minimax Optimal Regression and Classification
+# Minimax-Optimal Fixed-k-Nearest Neighbor Algorithms
 
-## Requirements
-The experiments were run under the following environment:
-```text
-python==3.8.1
-matplotlib==3.3.4
-numpy==1.20.0
-pandas==1.2.1
-py-cpuinfo==7.0.0
-scikit-learn==0.24.1
-scipy==1.6.0
-```
+This is an accompanying code for the paper "Minimax Algorithms with Fixed-$k$-Nearest Neighbors" ([arXiv:2202.02464v3](https://arxiv.org/abs/2202.02464)).
 
 ## Datasets
-- To run each experiment with a real-world dataset, find the link from Table 2 of the paper and donwload the dataset under `data/dataset-name/`.
+- To run each experiment with a real-world dataset for classification and regression, find the link from Table 2 of the paper and download the dataset under `data/dataset-name/`.
 
 ## To replicate
-- For the synthetic experiment (Section 5.1): run
+
+### Classification and Regression
+- To replicate the mixture of Gaussians experiment, run
 ```commandline
 python main_synthetic.py
 ```
+- For the plots in the paper, check the jupyter notebook `notebooks/exp_cls_mog_results.ipynb` 
 
-- For the real-world dataset experiment (Section 5.2): run, e.g., 
+- For the real-world dataset experiment: run, e.g., 
 ```commandline
 python main.py --parallel True --test-size 0.05 --n-folds 10 --n-trials 10 --algorithm kd_tree --dataset SUSY
 ```
+- For the validation error profile plot in the paper, check the jupyter notebook `notebooks/exp_cls_real_data_val_errors.ipynb`
+
+### Density Estimation
+- To replicate the random mixture of Gaussians experiment, run the jupyter notebook `notebooks/exp_density_mog.ipynb`
 
 ## To be implemented
 - Support node-level parallel computation.
 
-## Credit
-- A cross validation code snippet was adapted from that of this [repository](https://github.com/lirongx/SubNN). 
+## Acknowledgments
+- A cross validation code snippet was adapted from that of this [repository](https://github.com/lirongx/SubNN).

@@ -44,7 +44,6 @@ class MixtureOfTwoGaussians:
         self.prior = prior
         self.params0 = np.zeros(d), np.eye(d)
         self.params1 = np.ones(d), sigma ** 2 * np.eye(d)
-        self.prior = prior
         self.d = d
 
         self.classification = True
@@ -69,8 +68,8 @@ class MixtureOfTwoGaussians:
         n_samples0 = n_samples - n_samples1
         X0 = np.random.multivariate_normal(*self.params0, size=n_samples0)
         X1 = np.random.multivariate_normal(*self.params1, size=n_samples1)
-        y0 = np.ones(n_samples0) * 0
-        y1 = np.ones(n_samples1) * 1
+        y0 = np.zeros(n_samples0)
+        y1 = np.ones(n_samples1)
         X = np.concatenate([X0, X1], axis=0)
         y = np.concatenate([y0, y1], axis=0)
         return X, y
@@ -91,7 +90,7 @@ class HTRU2(Dataset):
     @staticmethod
     def load_and_preprocess(root):
         # Reference: https://github.com/AshishSardana/pulsars-candidate-classifier/blob/master/Pulsar%20Classification.ipynb
-        filepath = "{}/data/HTRU2/HTRU_2.csv".format(root)
+        filepath = f"{root}/data/HTRU2/HTRU_2.csv"
         df = pd.read_csv(filepath, header=None)
         features = list(df.columns)
         features.remove(8)
@@ -114,7 +113,7 @@ class CREDIT(Dataset):
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
-        xls = pd.ExcelFile("{}/data/CREDIT/credit_cards_dataset.xls".format(root))
+        xls = pd.ExcelFile(f"{root}/data/CREDIT/credit_cards_dataset.xls")
         df = xls.parse('Data')
         df.columns = df.iloc[0]  # set the first row as column names
         df = df.iloc[1:]  # drop the duplicated first row
@@ -134,14 +133,14 @@ class MiniBooNE(Dataset):
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
-        filepath = "{}/data/miniboone/MiniBooNE_PID.txt".format(root)
+        filepath = f"{root}/data/miniboone/MiniBooNE_PID.txt"
         df = mb.import_data(Path(filepath))
 
         # Rename columns
         columns_names = mb.get_column_names(df)
         df.rename(columns=lambda x: columns_names[x], inplace=True)
 
-        # Get the number of elecrons and muons in the file
+        # Get the number of electrons and muons in the file
         num_electron, num_muon = mb.get_num_neutrinos(Path(filepath))
 
         # Add the "target" column (1 - electron, 0 - muon)
@@ -196,28 +195,20 @@ class GISETTE(Dataset):
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
-        with open("{}/data/GISETTE/gisette_train.data".format(root)) as f:
-            data = []
-            for row in f.readlines():
-                data.append((row.strip()).split(" "))
+        with open(f"{root}/data/GISETTE/gisette_train.data") as f:
+            data = [row.strip().split(" ") for row in f.readlines()]
         X_train = np.array(data).astype(int)
 
-        with open("{}/data/GISETTE/gisette_train.labels".format(root)) as f:
-            classes = []
-            for row in f.readlines():
-                classes.append((row.strip()).split(" "))
+        with open(f"{root}/data/GISETTE/gisette_train.labels") as f:
+            classes = [row.strip().split(" ") for row in f.readlines()]
         y_train = (np.array(classes).astype(int).squeeze() == np.ones(len(classes))).astype(int)
 
-        with open("{}/data/GISETTE/gisette_valid.data".format(root)) as f:
-            data = []
-            for row in f.readlines():
-                data.append((row.strip()).split(" "))
+        with open(f"{root}/data/GISETTE/gisette_valid.data") as f:
+            data = [row.strip().split(" ") for row in f.readlines()]
         X_valid = np.array(data).astype(int)
 
-        with open("{}/data/GISETTE/gisette_valid.labels".format(root)) as f:
-            classes = []
-            for row in f.readlines():
-                classes.append((row.strip()).split(" "))
+        with open(f"{root}/data/GISETTE/gisette_valid.labels") as f:
+            classes = [row.strip().split(" ") for row in f.readlines()]
         y_valid = np.array(classes).astype(int)
         y_valid = y_valid[:, 0]
         y_valid[y_valid == -1] = 0  # somehow negative label in valid set is -1
@@ -243,7 +234,7 @@ class SUSY(Dataset):
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
-        filename = '{}/data/SUSY/SUSY.csv.gz'.format(root)
+        filename = f'{root}/data/SUSY/SUSY.csv.gz'
         df = pd.read_csv(filename, compression='gzip', header=None, sep=',', quotechar='"', error_bad_lines=False)
         X, y = np.array(df[df.columns[1:]]), np.array(df[df.columns[0]])
 
@@ -265,7 +256,7 @@ class HIGGS(Dataset):
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
-        filename = '{}/data/HIGGS/HIGGS.csv.gz'.format(root)
+        filename = f'{root}/data/HIGGS/HIGGS.csv.gz'
         df = pd.read_csv(filename, compression='gzip', header=None, sep=',', quotechar='"', error_bad_lines=False)
         X, y = np.array(df[df.columns[1:]]), np.array(df[df.columns[0]])
 
@@ -287,7 +278,7 @@ class BNGLetter(Dataset):
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
-        filename = '{}/data/BNGLetter/BNG_letter_1000_1.csv'.format(root)
+        filename = f'{root}/data/BNGLetter/BNG_letter_1000_1.csv'
         df = pd.read_csv(filename, header=0, sep=',', quotechar='"', error_bad_lines=False)
         X, y = np.array(df[df.columns[:-1]]), np.array(df[df.columns[-1]])
 
@@ -308,8 +299,8 @@ class WineQuality(Dataset):
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
-        red = pd.read_csv('{}/data/WineQuality/winequality-red.csv'.format(root), low_memory=False, sep=';')
-        white = pd.read_csv('{}/data/WineQuality/winequality-white.csv'.format(root), low_memory=False, sep=';')
+        red = pd.read_csv(f'{root}/data/WineQuality/winequality-red.csv', low_memory=False, sep=';')
+        white = pd.read_csv(f'{root}/data/WineQuality/winequality-white.csv', low_memory=False, sep=';')
         df = pd.concat([red, white], ignore_index=True)
         df = white
         X, y = np.array(df[df.columns[:-1]]), np.array(df[df.columns[-1]])
@@ -331,7 +322,7 @@ class YearPredictionMSD(Dataset):
 
     @staticmethod
     def load_and_preprocess(root, verbose=False):
-        filename = '{}/data/YearPredictionMSD/YearPredictionMSD.txt.zip'.format(root)
+        filename = f'{root}/data/YearPredictionMSD/YearPredictionMSD.txt.zip'
         df = pd.read_csv(filename, compression='zip', header=None, sep=',', quotechar='"', error_bad_lines=False)
         X, y = np.array(df[df.columns[1:]]), np.array(df[df.columns[0]])
 

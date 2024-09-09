@@ -1,10 +1,22 @@
 import numpy as np
-from scipy.special import digamma, loggamma, gamma, logsumexp
-from sklearn.neighbors._base import _check_weights, NeighborsBase, KNeighborsMixin
+from scipy.special import digamma, loggamma, gamma, logsumexp, gammaincinv
+
+from sklearn.neighbors._base import NeighborsBase, KNeighborsMixin
 from sklearn.utils import check_array
 from sklearn.utils.validation import _deprecate_positional_args, check_is_fitted
 
 from regressor import SplitSelectKNeighbors
+
+
+def _check_weights(weights):
+    """Check to make sure weights are valid"""
+    if weights in (None, 'uniform', 'distance'):
+        return weights
+    elif callable(weights):
+        return weights
+    else:
+        raise ValueError("weights not recognized: should be 'uniform', "
+                         "'distance', or a callable function")
 
 
 class UnsupervisedMixin:
@@ -316,31 +328,48 @@ class SplitKNeighborsDensity(SplitSelectKNeighbors):
         log_densities['type2_log'] = - local_logsum_volumes + digamma(k * self.n_splits)
 
         for alpha in alphas:
-            if alpha == 1:
-                continue
-
-            log_densities['type1_poly_{}'.format(alpha)] = \
+            log_densities[f'type1_poly_{alpha}'] = \
                 -np.inf * np.ones(local_log_volumes.shape[1]) if k <= alpha else \
                     (loggamma(k) - loggamma(k - alpha) +
                      logsumexp((- alpha) * local_log_volumes, axis=0) - np.log(self.n_splits)) / alpha
 
-            log_densities['type2_poly_{}'.format(alpha)] = \
+            log_densities[f'type2_poly_{alpha}'] = \
                 -np.inf * np.ones(local_log_volumes.shape[1]) if k * self.n_splits <= alpha else \
                     (loggamma(k * self.n_splits) - loggamma(k * self.n_splits - alpha) +
                      (- alpha) * local_logsum_volumes) / alpha
 
         for beta in betas:
-            log_densities['type1_exp_{}'.format(beta)] = \
-                np.log(
-                    ((1 - beta / np.exp(local_log_volumes)) ** (k - 1) *
-                     (local_log_volumes >= (np.log(beta) if beta > 0 else -np.inf))).mean(axis=0)) / (-beta)
+            log_densities[f'type1_exp_{beta}'] = np.log(
+                ((1 - beta / np.exp(local_log_volumes)) ** (k - 1) *
+                 (local_log_volumes >= (np.log(beta) if beta > 0 else -np.inf))).mean(axis=0)
+            ) / (-beta)
 
-            log_densities['type2_exp_{}'.format(beta)] = \
-                np.log(
-                    ((1 - beta / np.exp(local_logsum_volumes)) ** (k * self.n_splits - 1) *
-                     (local_logsum_volumes >= (np.log(beta) if beta > 0 else -np.inf)))) / (-beta)
+            log_densities[f'type1_exp_{beta}'] = np.log(
+                ((1 - beta / np.exp(local_logsum_volumes)) ** (k * self.n_splits - 1) *
+                 (local_logsum_volumes >= (np.log(beta) if beta > 0 else -np.inf)))
+            ) / (-beta)
 
         return log_densities
+
+
+class SplitMedianNeighborsDensity(SplitSelectKNeighbors):
+    def __init__(self, **kwargs):
+        super().__init__(density=True, **kwargs)
+        self.local_models = []
+        self.base_model = KNeighborsDensity
+
+    def score_samples(self, *args, **kwargs):
+        return self.predict(*args, **kwargs)
+
+    def predict(self, X, parallel=False):
+        # X: np.array; (n_queries, n_features)
+        # Local operations
+        local_log_volumes, _ = self.local_predict(X, parallel=parallel)  # (n_samples, n_queries, n_k)
+
+        # Note that knn_distances.shape = (n_samples, n_queries, n_k)
+        log_density = - np.median(local_log_volumes, axis=0) + np.log(gammaincinv(self.n_neighbors, .5))
+
+        return log_density
 
 
 # for multiprocessing

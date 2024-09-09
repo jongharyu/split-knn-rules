@@ -31,10 +31,11 @@ class Logger(object):
 
 
 def generate_keys(base_k):
-    base_keys = ['Msplit_select1', # proposed
-                 'Msplit_select0', # \approx big k-NN
-                ]
+    base_keys = [
+        'Msplit_select1',  # proposed
+        'Msplit_select0',  # \approx big k-NN
+    ]
     keys = []
     for k in base_k:
-        keys.extend(['{}_{}NN'.format(key, k) for key in base_keys])
+        keys.extend([f'{key}_{k}NN' for key in base_keys])
     return keys
