@@ -1,6 +1,6 @@
 # Minimax-Optimal Fixed-k-Nearest Neighbor Algorithms
 
-This is an accompanying code for the paper "Minimax Algorithms with Fixed-$k$-Nearest Neighbors" ([arXiv:2202.02464v2](https://arxiv.org/abs/2202.02464)).
+This is an accompanying code for the paper "Minimax Algorithms with Fixed-$k$-Nearest Neighbors" ([arXiv:2202.02464v3](https://arxiv.org/abs/2202.02464)).
 
 ## Datasets
 - To run each experiment with a real-world dataset for classification and regression, find the link from Table 2 of the paper and download the dataset under `data/dataset-name/`.
