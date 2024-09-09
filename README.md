@@ -8,15 +8,20 @@ This is an accompanying code for the paper "Minimax Algorithms with Fixed-$k$-Ne
 ## To replicate
 
 ### Classification and Regression
-- For the synthetic data: run
+- To replicate the mixture of Gaussians experiment, run
 ```commandline
 python main_synthetic.py
 ```
+- For the plots in the paper, check the jupyter notebook `notebooks/exp_cls_mog_results.ipynb` 
 
 - For the real-world dataset experiment: run, e.g., 
 ```commandline
 python main.py --parallel True --test-size 0.05 --n-folds 10 --n-trials 10 --algorithm kd_tree --dataset SUSY
 ```
+- For the validation error profile plot in the paper, check the jupyter notebook `notebooks/exp_cls_real_data_val_errors.ipynb`
+
+### Density Estimation
+- To replicate the random mixture of Gaussians experiment, run the jupyter notebook `notebooks/exp_density_mog.ipynb`
 
 ## To be implemented
 - Support node-level parallel computation.
